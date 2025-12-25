@@ -1,9 +1,8 @@
 
 import { GoogleGenAI, Type } from "@google/genai";
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
-
 export const processChefPrompt = async (prompt: string, currentContext: any) => {
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   const response = await ai.models.generateContent({
     model: 'gemini-3-flash-preview',
     contents: `Analyze the following chef's command: "${prompt}". 
@@ -38,12 +37,13 @@ export const processChefPrompt = async (prompt: string, currentContext: any) => 
 };
 
 export const analyzeCookingVideo = async (videoBase64: string, mimeType: string) => {
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   const response = await ai.models.generateContent({
-    model: 'gemini-3-pro-preview',
+    model: 'gemini-3-flash-preview',
     contents: {
       parts: [
         { inlineData: { data: videoBase64, mimeType } },
-        { text: "Analyze this cooking video and extract a structured culinary plan. Provide: 1. Ingredients list (accurate images keywords). 2. Flowchart nodes (positions x,y distributed logically). 3. Connections with specific action verbs. 4. Method steps with durations and chef categories. Return ONLY JSON." }
+        { text: "Analyze this cooking video and extract a structured culinary plan. Provide: 1. Ingredients list (accurate images keywords). 2. Flowchart nodes (positions x,y distributed logically in a sequence). 3. Connections with specific action verbs. 4. Method steps with durations and chef categories. Ensure all coordinates (x,y) are spaced out (e.g., x increases for each subsequent step). Return ONLY JSON." }
       ]
     },
     config: {
