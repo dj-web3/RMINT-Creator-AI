@@ -1,0 +1,8 @@
+{
+  "name": "Creator Chef Studio",
+  "description": "A comprehensive workspace for creator chefs to plan recipes using a visual flowchart playground, automatic method generation, and a professional multi-chef timeline view.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}
