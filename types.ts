@@ -26,6 +26,9 @@ export interface StepGroup {
   nodeIds: string[];
   color: string;
   isExpanded?: boolean;
+  assignedChef?: ChefCategory;
+  startTime?: string;
+  durationMinutes?: number;
 }
 
 export interface Node {
@@ -55,7 +58,7 @@ export interface MethodStep {
   action: string;
   ingredients: string[];
   durationMinutes: number;
-  startTime: string; // e.g. "08:00 am"
+  startTime: string; 
   chef: ChefCategory;
   resultLabel: string;
 }
