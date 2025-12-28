@@ -14,7 +14,8 @@ export const processChefPrompt = async (prompt: string, currentContext: any) => 
     4. chefCategory: Suggested chef (Sous, Station, Trainee, Junior).
     5. quantity: Resulting quantity.
     6. actionType: Categorize action as 'cooking' (heat), 'resting' (chill/temp), 'waiting' (time), 'baking' (oven), or 'default'.
-    7. imageKeyword: A specific keyword for searching an image of this RESULT.`,
+    7. imageKeyword: A specific keyword for searching an image of this RESULT.
+    8. subSteps: An array of detailed instructions to reach this result (e.g. ["Chop ingredients", "Grind to paste"]). Each item should be an object: {instruction: string, duration?: number}.`,
     config: {
       responseMimeType: "application/json",
       responseSchema: {
@@ -26,9 +27,19 @@ export const processChefPrompt = async (prompt: string, currentContext: any) => 
           chefCategory: { type: Type.STRING },
           quantity: { type: Type.STRING },
           actionType: { type: Type.STRING },
-          imageKeyword: { type: Type.STRING }
+          imageKeyword: { type: Type.STRING },
+          subSteps: {
+            type: Type.ARRAY,
+            items: {
+              type: Type.OBJECT,
+              properties: {
+                instruction: { type: Type.STRING },
+                duration: { type: Type.NUMBER }
+              }
+            }
+          }
         },
-        required: ["resultName", "actionVerb", "duration", "chefCategory", "quantity", "actionType", "imageKeyword"]
+        required: ["resultName", "actionVerb", "duration", "chefCategory", "quantity", "actionType", "imageKeyword", "subSteps"]
       }
     }
   });
@@ -43,7 +54,7 @@ export const analyzeCookingVideo = async (videoBase64: string, mimeType: string)
     contents: {
       parts: [
         { inlineData: { data: videoBase64, mimeType } },
-        { text: "Analyze this cooking video and extract a structured culinary plan. Provide: 1. Ingredients list (accurate images keywords). 2. Flowchart nodes (positions x,y distributed logically in a sequence). 3. Connections with specific action verbs. 4. Method steps with durations and chef categories. Ensure all coordinates (x,y) are spaced out (e.g., x increases for each subsequent step). Return ONLY JSON." }
+        { text: "Analyze this cooking video and extract a structured culinary plan. Provide: 1. Ingredients list. 2. Flowchart nodes (positions x,y distributed logically). 3. Connections. 4. Method steps. For composite nodes, provide 'subSteps' array. Ensure all coordinates are spaced out. Return ONLY JSON." }
       ]
     },
     config: {
@@ -75,7 +86,8 @@ export const analyzeCookingVideo = async (videoBase64: string, mimeType: string)
                  image: { type: Type.STRING },
                  duration: { type: Type.NUMBER },
                  x: { type: Type.NUMBER },
-                 y: { type: Type.NUMBER }
+                 y: { type: Type.NUMBER },
+                 subSteps: { type: Type.ARRAY, items: { type: Type.OBJECT, properties: { instruction: { type: Type.STRING }, duration: { type: Type.NUMBER } } } }
                }
              }
           },

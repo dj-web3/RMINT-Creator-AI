@@ -15,6 +15,19 @@ export interface Ingredient {
   quantity: string;
 }
 
+export interface SubStep {
+  instruction: string;
+  duration?: number;
+}
+
+export interface StepGroup {
+  id: string;
+  label: string;
+  nodeIds: string[];
+  color: string;
+  isExpanded?: boolean;
+}
+
 export interface Node {
   id: string;
   type: 'ingredient' | 'action-result';
@@ -24,6 +37,8 @@ export interface Node {
   duration?: number;
   x: number;
   y: number;
+  isExpanded?: boolean;
+  subSteps?: SubStep[];
 }
 
 export interface Edge {
@@ -50,4 +65,5 @@ export interface AppState {
   nodes: Node[];
   edges: Edge[];
   steps: MethodStep[];
+  stepGroups: StepGroup[];
 }
