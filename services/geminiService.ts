@@ -35,7 +35,8 @@ export const processChefPrompt = async (prompt: string, currentContext: any) => 
               properties: {
                 instruction: { type: Type.STRING },
                 duration: { type: Type.NUMBER }
-              }
+              },
+              required: ["instruction"]
             }
           }
         },
@@ -49,12 +50,13 @@ export const processChefPrompt = async (prompt: string, currentContext: any) => 
 
 export const analyzeCookingVideo = async (videoBase64: string, mimeType: string) => {
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  // Upgraded to gemini-3-pro-preview for complex multimodal analysis task
   const response = await ai.models.generateContent({
-    model: 'gemini-3-flash-preview',
+    model: 'gemini-3-pro-preview',
     contents: {
       parts: [
         { inlineData: { data: videoBase64, mimeType } },
-        { text: "Analyze this cooking video and extract a structured culinary plan. Provide: 1. Ingredients list. 2. Flowchart nodes (positions x,y distributed logically). 3. Connections. 4. Method steps. For composite nodes, provide 'subSteps' array. Ensure all coordinates are spaced out. Return ONLY JSON." }
+        { text: `Analyze this cooking video and extract a structured culinary plan.` }
       ]
     },
     config: {
@@ -62,65 +64,47 @@ export const analyzeCookingVideo = async (videoBase64: string, mimeType: string)
       responseSchema: {
         type: Type.OBJECT,
         properties: {
-          ingredients: {
+          meta: {
+            type: Type.OBJECT,
+            properties: {
+              title: { type: Type.STRING },
+              yield: { type: Type.STRING },
+              domain_logic: { type: Type.STRING }
+            },
+            required: ["title", "yield", "domain_logic"]
+          },
+          inventory_initialization: {
             type: Type.ARRAY,
             items: {
               type: Type.OBJECT,
               properties: {
                 id: { type: Type.STRING },
                 name: { type: Type.STRING },
-                image: { type: Type.STRING },
-                quantity: { type: Type.STRING }
-              }
+                qty: { type: Type.STRING },
+                state: { type: Type.STRING }
+              },
+              required: ["id", "name", "qty", "state"]
             }
           },
-          nodes: {
-             type: Type.ARRAY,
-             items: {
-               type: Type.OBJECT,
-               properties: {
-                 id: { type: Type.STRING },
-                 type: { type: Type.STRING },
-                 label: { type: Type.STRING },
-                 quantity: { type: Type.STRING },
-                 image: { type: Type.STRING },
-                 duration: { type: Type.NUMBER },
-                 x: { type: Type.NUMBER },
-                 y: { type: Type.NUMBER },
-                 subSteps: { type: Type.ARRAY, items: { type: Type.OBJECT, properties: { instruction: { type: Type.STRING }, duration: { type: Type.NUMBER } } } }
-               }
-             }
-          },
-          edges: {
+          process_trace: {
             type: Type.ARRAY,
             items: {
               type: Type.OBJECT,
               properties: {
-                id: { type: Type.STRING },
-                sourceId: { type: Type.STRING },
-                targetId: { type: Type.STRING },
+                step_id: { type: Type.INTEGER },
+                timestamp: { type: Type.STRING },
+                operation: { type: Type.STRING },
+                inputs: { type: Type.ARRAY, items: { type: Type.STRING } },
                 action: { type: Type.STRING },
-                iconType: { type: Type.STRING }
-              }
-            }
-          },
-          steps: {
-            type: Type.ARRAY,
-            items: {
-              type: Type.OBJECT,
-              properties: {
-                id: { type: Type.STRING },
-                stepNumber: { type: Type.NUMBER },
-                action: { type: Type.STRING },
-                ingredients: { type: Type.ARRAY, items: { type: Type.STRING } },
-                durationMinutes: { type: Type.NUMBER },
-                startTime: { type: Type.STRING },
-                chef: { type: Type.STRING },
-                resultLabel: { type: Type.STRING }
-              }
+                output_state: { type: Type.STRING },
+                note: { type: Type.STRING },
+                visual_cue: { type: Type.STRING }
+              },
+              required: ["step_id", "timestamp", "operation", "inputs", "action", "output_state", "note", "visual_cue"]
             }
           }
-        }
+        },
+        required: ["meta", "inventory_initialization", "process_trace"]
       }
     }
   });

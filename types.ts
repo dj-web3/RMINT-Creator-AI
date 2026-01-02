@@ -13,6 +13,8 @@ export interface Ingredient {
   name: string;
   image: string;
   quantity: string;
+  state?: string;
+  composition?: string[];
 }
 
 export interface SubStep {
@@ -52,21 +54,30 @@ export interface Edge {
   iconType: ActionIconType;
 }
 
-export interface MethodStep {
+export interface TasteProfile {
+  sweet: number;
+  bitter: number;
+  sour: number;
+  umami: number;
+  salty: number;
+  pungency: number;
+  alcohol: number;
+  fat: number;
+}
+
+export type TasteKey = keyof TasteProfile;
+
+export interface PairingItem {
   id: string;
-  stepNumber: number;
-  action: string;
-  ingredients: string[];
-  durationMinutes: number;
-  startTime: string; 
-  chef: ChefCategory;
-  resultLabel: string;
+  name: string;
+  image: string;
+  flavorProfile: TasteKey[]; 
+  alternatives?: PairingItem[];
 }
 
 export interface AppState {
   ingredients: Ingredient[];
   nodes: Node[];
   edges: Edge[];
-  steps: MethodStep[];
   stepGroups: StepGroup[];
 }
