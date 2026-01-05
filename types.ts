@@ -35,10 +35,12 @@ export interface StepGroup {
 
 export interface Node {
   id: string;
-  type: 'ingredient' | 'action-result';
+  type: 'ingredient' | 'action-result' | 'input' | 'note' | 'instructions' | 'video-result' | 'image-result';
   label: string;
   quantity: string;
   image?: string;
+  videoUrl?: string;
+  content?: string;
   duration?: number;
   x: number;
   y: number;
@@ -52,6 +54,7 @@ export interface Edge {
   targetId: string;
   action: string;
   iconType: ActionIconType;
+  color?: string;
 }
 
 export interface TasteProfile {
@@ -73,6 +76,22 @@ export interface PairingItem {
   image: string;
   flavorProfile: TasteKey[]; 
   alternatives?: PairingItem[];
+}
+
+// Lattice Types
+export interface LatticeDish {
+  name: string;
+  color: string;
+  x: number; // 0 to 1
+  y: number; // 0 to 1
+  width: number; // 0 to 1
+  height: number; // 0 to 1
+}
+
+export interface LatticeSet {
+  id: string;
+  title: string;
+  dishes: LatticeDish[];
 }
 
 export interface AppState {

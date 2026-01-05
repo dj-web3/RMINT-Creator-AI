@@ -29,7 +29,12 @@ import {
   ChefHat,
   X,
   Search,
-  ChevronRight
+  ChevronRight,
+  ChevronLeft,
+  FileText,
+  Video,
+  Image as ImageIcon,
+  Grid
 } from 'lucide-react';
 import { 
   Ingredient, 
@@ -40,7 +45,9 @@ import {
   SubStep,
   StepGroup,
   TasteKey,
-  PairingItem
+  PairingItem,
+  LatticeSet,
+  LatticeDish
 } from './types';
 import { processChefPrompt, analyzeCookingVideo } from './services/geminiService';
 
@@ -69,13 +76,38 @@ const INITIAL_PAIRINGS: PairingItem[] = [
   ]},
   { id: 'p4', name: 'Garlic Naan', image: getIngImage('garlic bread'), flavorProfile: ['fat', 'salty'], alternatives: [
     { id: 'p4a', name: 'Butter Roti', image: getIngImage('roti'), flavorProfile: ['fat', 'salty'] },
-    // Fix: 'savory' is not a valid key of TasteProfile. 'umami' is the closest equivalent.
     { id: 'p4b', name: 'Missi Roti', image: getIngImage('indian flatbread'), flavorProfile: ['umami'] },
   ]},
   { id: 'p5', name: 'Red Wine', image: getIngImage('wine'), flavorProfile: ['alcohol', 'bitter'], alternatives: [
     { id: 'p5a', name: 'Cold Beer', image: getIngImage('beer'), flavorProfile: ['alcohol', 'bitter'] },
     { id: 'p5b', name: 'Iced Tea', image: getIngImage('iced tea'), flavorProfile: ['sweet', 'bitter'] },
   ]},
+];
+
+const LATTICE_SETS: LatticeSet[] = [
+  {
+    id: 'set-1',
+    title: 'Butter Chicken Fusion Feast',
+    dishes: [
+      { name: 'Butter Chicken', color: 'rgba(239, 68, 68, 0.6)', x: 0.35, y: 0.25, width: 0.4, height: 0.5 },
+      { name: 'Naan', color: 'rgba(234, 179, 8, 0.5)', x: 0.15, y: 0.15, width: 0.35, height: 0.35 },
+      { name: 'Lassi', color: 'rgba(255, 192, 203, 0.5)', x: 0.55, y: 0.1, width: 0.25, height: 0.35 },
+      { name: 'Gulab Jamun', color: 'rgba(128, 0, 128, 0.6)', x: 0.5, y: 0.55, width: 0.25, height: 0.25 },
+      { name: 'Chicken Tikka', color: 'rgba(34, 197, 94, 0.5)', x: 0.65, y: 0.4, width: 0.3, height: 0.45 },
+      { name: 'Veg Kolhapuri', color: 'rgba(0, 0, 0, 0.7)', x: 0.82, y: 0.15, width: 0.15, height: 0.7 },
+    ]
+  },
+  {
+    id: 'set-2',
+    title: 'Northern Classic Combo',
+    dishes: [
+      { name: 'Butter Chicken', color: 'rgba(239, 68, 68, 0.6)', x: 0.3, y: 0.3, width: 0.45, height: 0.5 },
+      { name: 'Garlic Naan', color: 'rgba(234, 179, 8, 0.5)', x: 0.1, y: 0.2, width: 0.35, height: 0.4 },
+      { name: 'Chaas', color: 'rgba(147, 197, 253, 0.5)', x: 0.6, y: 0.1, width: 0.3, height: 0.4 },
+      { name: 'Kadhai Paneer', color: 'rgba(74, 222, 128, 0.6)', x: 0.55, y: 0.5, width: 0.35, height: 0.35 },
+      { name: 'Rasmalai', color: 'rgba(252, 211, 77, 0.5)', x: 0.45, y: 0.7, width: 0.25, height: 0.2 },
+    ]
+  }
 ];
 
 const NODE_WIDTH = 180; 
@@ -95,7 +127,7 @@ const ActionIcon: React.FC<{ type: ActionIconType; size?: number; className?: st
 };
 
 const App: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'playground' | 'timeline' | 'pairing'>('playground');
+  const [activeTab, setActiveTab] = useState<'playground' | 'spaces' | 'timeline' | 'pairing' | 'lattice'>('playground');
   const [ingredients, setIngredients] = useState<Ingredient[]>(MOCK_INGREDIENTS);
   const [nodes, setNodes] = useState<Node[]>([]);
   const [edges, setEdges] = useState<Edge[]>([]);
@@ -216,8 +248,10 @@ const App: React.FC = () => {
           <nav className="flex items-center gap-1 ml-6 bg-slate-50 p-1 rounded-lg scale-90">
             {[
               { id: 'playground', label: 'Playground', icon: Layout },
+              { id: 'spaces', label: 'Spaces', icon: BoxSelect },
               { id: 'timeline', label: 'Timeline', icon: Clock },
-              { id: 'pairing', label: 'Pairing', icon: Wine }
+              { id: 'pairing', label: 'Pairing', icon: Wine },
+              { id: 'lattice', label: 'Lattice', icon: Grid }
             ].map(tab => (
               <button 
                 key={tab.id}
@@ -317,12 +351,20 @@ const App: React.FC = () => {
           </>
         )}
 
+        {activeTab === 'spaces' && (
+          <SpacesView />
+        )}
+
         {activeTab === 'timeline' && (
           <TimelineView stepGroups={stepGroups} setStepGroups={setStepGroups} />
         )}
 
         {activeTab === 'pairing' && (
           <PairingView />
+        )}
+
+        {activeTab === 'lattice' && (
+          <LatticeView />
         )}
       </div>
 
@@ -483,16 +525,202 @@ const TimelineView: React.FC<{ stepGroups: StepGroup[], setStepGroups: React.Dis
           </div>
         </div>
       </div>
-      <div className="mt-8 flex gap-4 overflow-x-auto pb-4">
-        {stepGroups.filter(g => !g.assignedChef).map(g => (
-          <div key={g.id} className="bg-white border border-orange-200 p-4 rounded-2xl shadow-sm min-w-[240px]">
-             <p className="text-[8px] font-black text-orange-500 uppercase mb-2">Unassigned Task</p>
-             <h4 className="text-[10px] font-black text-slate-800 uppercase mb-3">{g.label}</h4>
-             <div className="flex flex-wrap gap-1">
-               {chefs.map(c => <button key={c} onClick={() => updateChef(g.id, c)} className="px-2 py-1 bg-slate-50 hover:bg-slate-900 hover:text-white rounded text-[7px] font-black uppercase transition-all">{c.split(' ')[0]}</button>)}
-             </div>
+    </div>
+  );
+};
+
+const SpacesView: React.FC = () => {
+  const dummyNodes: Node[] = [
+    { id: 's1', type: 'input', label: 'Input', image: getIngImage('raw chicken'), quantity: '500g', x: 100, y: 100 },
+    { id: 's2', type: 'note', label: 'Note', content: 'Ensure the chicken is clean and patted dry before marination to avoid excess moisture.', quantity: '', x: 100, y: 400 },
+    { id: 's3', type: 'instructions', label: 'Instructions', content: 'Marinate with yogurt, ginger-garlic paste, and spices for at least 4 hours.', quantity: '', x: 500, y: 450 },
+    { id: 's4', type: 'image-result', label: 'Image Result', image: getIngImage('cooked butter chicken'), quantity: '', x: 900, y: 100 },
+    { id: 's5', type: 'video-result', label: 'Video Result', image: getIngImage('simmering chicken'), quantity: '', x: 950, y: 500 },
+  ];
+
+  const dummyEdges: Edge[] = [
+    { id: 'e1', sourceId: 's1', targetId: 's3', action: 'Process', iconType: 'default', color: '#818cf8' },
+    { id: 'e2', sourceId: 's2', targetId: 's3', action: 'Note Link', iconType: 'default', color: '#f87171' },
+    { id: 'e3', sourceId: 's3', targetId: 's4', action: 'Cook', iconType: 'cooking', color: '#fbbf24' },
+    { id: 'e4', sourceId: 's3', targetId: 's5', action: 'Video', iconType: 'waiting', color: '#10b981' },
+  ];
+
+  return (
+    <div className="flex-1 bg-[#0a0a0b] overflow-hidden relative canvas-grid opacity-90">
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-center pointer-events-none z-0">
+        <h2 className="text-9xl font-black text-white/[0.03] uppercase tracking-tighter">Spaces</h2>
+        <div className="mt-8">
+           <h3 className="text-4xl font-black text-white uppercase tracking-tight">Your Infinite Canvas</h3>
+           <p className="text-white/40 text-sm font-black uppercase tracking-[0.4em] mt-4">Real-time Collaborative Creation</p>
+        </div>
+      </div>
+
+      <div className="absolute inset-0 z-10 pointer-events-none">
+        <svg className="w-full h-full">
+          {dummyEdges.map(edge => {
+            const s = dummyNodes.find(n => n.id === edge.sourceId);
+            const t = dummyNodes.find(n => n.id === edge.targetId);
+            if (!s || !t) return null;
+            const x1 = s.x + 140; const y1 = s.y + 100;
+            const x2 = t.x; const y2 = t.y + 100;
+            return (
+              <path key={edge.id} d={`M ${x1} ${y1} C ${x1 + 150} ${y1}, ${x2 - 150} ${y2}, ${x2} ${y2}`} fill="none" stroke={edge.color || '#fff'} strokeWidth="2.5" strokeOpacity="0.3" strokeDasharray="5,5" />
+            );
+          })}
+        </svg>
+      </div>
+
+      <div className="relative z-20 w-full h-full overflow-auto p-32">
+        {dummyNodes.map(node => (
+          <div key={node.id} className="absolute w-[320px] bg-slate-900/40 border border-white/10 rounded-3xl p-6 shadow-2xl backdrop-blur-xl group hover:border-white/20 transition-all cursor-move" style={{ left: node.x, top: node.y }}>
+            <div className="flex items-center gap-3 mb-6">
+               <div className={`p-2 rounded-xl bg-opacity-10 ${
+                 node.type === 'input' ? 'bg-indigo-500 text-indigo-400' : 
+                 node.type === 'note' ? 'bg-red-500 text-red-400' : 
+                 node.type === 'instructions' ? 'bg-orange-500 text-orange-400' :
+                 node.type === 'image-result' ? 'bg-yellow-500 text-yellow-400' :
+                 'bg-green-500 text-green-400'
+               }`}>
+                  {node.type === 'input' && <Upload size={14} />}
+                  {node.type === 'note' && <FileText size={14} />}
+                  {node.type === 'instructions' && <Zap size={14} />}
+                  {node.type === 'image-result' && <ImageIcon size={14} />}
+                  {node.type === 'video-result' && <Video size={14} />}
+               </div>
+               <span className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em]">{node.label}</span>
+            </div>
+            
+            {node.image && (
+              <div className="w-full h-48 rounded-2xl overflow-hidden mb-6 bg-black/40 ring-1 ring-white/5">
+                <img src={node.image} className="w-full h-full object-cover grayscale opacity-60 group-hover:grayscale-0 group-hover:opacity-100 transition-all duration-700" />
+              </div>
+            )}
+            
+            {node.content && (
+              <p className="text-xs text-white/60 font-medium leading-relaxed mb-4">{node.content}</p>
+            )}
+            
+            <div className="flex items-center justify-between border-t border-white/5 pt-4">
+               <div className="flex gap-1.5">
+                  <div className="w-6 h-6 rounded-full bg-blue-500 border border-black shadow-sm ring-2 ring-blue-500/20" title="Jeremy" />
+                  <div className="w-6 h-6 rounded-full bg-red-500 border border-black shadow-sm ring-2 ring-red-500/20 -ml-2" title="Megan" />
+               </div>
+               {node.quantity && <span className="text-[9px] font-black text-white/30 uppercase tracking-widest">{node.quantity}</span>}
+            </div>
+
+            {node.type === 'video-result' && (
+               <div className="absolute -bottom-5 -right-5 bg-white text-black p-3.5 rounded-2xl shadow-2xl hover:bg-orange-500 hover:text-white transition-colors">
+                  <Play size={20} fill="currentColor" />
+               </div>
+            )}
           </div>
         ))}
+        
+        <div className="fixed bottom-12 left-1/2 -translate-x-1/2 bg-white/5 backdrop-blur-2xl rounded-[2rem] p-3 flex gap-4 border border-white/10 shadow-[0_0_50px_rgba(0,0,0,0.5)]">
+           <button className="px-8 py-3 bg-white text-black text-[11px] font-black uppercase rounded-[1.5rem] hover:bg-orange-500 hover:text-white transition-all scale-100 hover:scale-105 active:scale-95">Start Creating</button>
+           <button className="p-3 text-white/40 hover:text-white transition-colors"><Search size={18}/></button>
+           <button className="p-3 text-white/40 hover:text-white transition-colors"><Layers size={18}/></button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const LatticeView: React.FC = () => {
+  const [currentSetIndex, setCurrentSetIndex] = useState(0);
+  const currentSet = LATTICE_SETS[currentSetIndex];
+
+  return (
+    <div className="flex-1 flex flex-col bg-[#fcfaf8] overflow-hidden p-12">
+      <div className="flex items-center justify-between mb-10 px-6">
+        <div>
+           <h2 className="text-5xl font-black text-slate-800 uppercase tracking-tighter">{currentSet.title}</h2>
+           <p className="text-[11px] font-black text-slate-400 uppercase tracking-[0.4em] mt-3">Advanced Geometric Pairing Analysis</p>
+        </div>
+        <div className="flex gap-4">
+           <button onClick={() => setCurrentSetIndex((p) => (p - 1 + LATTICE_SETS.length) % LATTICE_SETS.length)} className="w-16 h-16 bg-white border border-slate-200 rounded-3xl flex items-center justify-center hover:bg-slate-50 transition-all hover:shadow-lg active:scale-95 text-slate-400 hover:text-slate-900"><ChevronLeft size={24}/></button>
+           <button onClick={() => setCurrentSetIndex((p) => (p + 1) % LATTICE_SETS.length)} className="w-16 h-16 bg-slate-900 text-white rounded-3xl flex items-center justify-center hover:bg-black transition-all hover:shadow-xl active:scale-95 shadow-lg shadow-slate-200"><ChevronRight size={24}/></button>
+        </div>
+      </div>
+
+      <div className="flex-1 flex gap-12 overflow-hidden">
+         <div className="flex-1 bg-white rounded-[4rem] border border-slate-200 p-16 relative overflow-hidden shadow-[0_30px_100px_rgba(0,0,0,0.03)] group">
+            <div className="absolute inset-0 opacity-[0.03] pointer-events-none">
+               <svg width="100%" height="100%"><defs><pattern id="lattice-grid" width="120" height="120" patternUnits="userSpaceOnUse"><path d="M 120 0 L 0 0 0 120" fill="none" stroke="black" strokeWidth="2"/></pattern></defs><rect width="100%" height="100%" fill="url(#lattice-grid)" /></svg>
+            </div>
+            
+            <div className="w-full h-full relative bg-slate-50/50 rounded-3xl border border-slate-100 overflow-hidden">
+               {currentSet.dishes.map((dish, i) => (
+                 <div 
+                  key={i} 
+                  className="absolute border border-black/5 transition-all duration-[1200ms] flex flex-col items-center justify-center text-center p-4"
+                  style={{
+                    left: `${dish.x * 100}%`,
+                    top: `${dish.y * 100}%`,
+                    width: `${dish.width * 100}%`,
+                    height: `${dish.height * 100}%`,
+                    backgroundColor: dish.color,
+                    zIndex: dish.name === 'Butter Chicken' ? 10 : 1
+                  }}
+                 >
+                    <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-700 flex flex-col items-center">
+                       <span className="text-[11px] font-black text-white uppercase tracking-wider bg-black/60 px-4 py-2 rounded-2xl backdrop-blur-md shadow-2xl mb-2">{dish.name}</span>
+                       <div className="flex gap-1">
+                          <div className="w-1 h-1 rounded-full bg-white/40" />
+                          <div className="w-1 h-1 rounded-full bg-white/40" />
+                          <div className="w-1 h-1 rounded-full bg-white/40" />
+                       </div>
+                    </div>
+                 </div>
+               ))}
+               
+               <div className="absolute bottom-8 left-8 bg-white/95 backdrop-blur-xl p-8 rounded-[3rem] shadow-2xl border border-slate-200 w-72 z-50 animate-in slide-in-from-bottom-4">
+                  <div className="flex items-center gap-3 mb-6">
+                     <Grid size={18} className="text-orange-500" />
+                     <p className="text-[10px] font-black text-slate-800 uppercase tracking-widest">Active Schema</p>
+                  </div>
+                  <div className="space-y-4">
+                     {currentSet.dishes.map((dish, i) => (
+                       <div key={i} className="flex items-center gap-4 group/item">
+                          <div className="w-4 h-4 rounded-lg shadow-sm group-hover/item:scale-125 transition-transform" style={{ backgroundColor: dish.color }} />
+                          <div className="flex-1 overflow-hidden">
+                             <p className="text-[11px] font-black text-slate-700 uppercase truncate leading-none mb-1">{dish.name}</p>
+                             <div className="h-0.5 w-full bg-slate-100 rounded-full overflow-hidden">
+                                <div className="h-full bg-slate-300 rounded-full transition-all duration-1000" style={{ width: `${Math.random() * 60 + 40}%` }} />
+                             </div>
+                          </div>
+                       </div>
+                     ))}
+                  </div>
+               </div>
+            </div>
+         </div>
+
+         <div className="w-96 flex flex-col gap-8">
+            <div className="flex-1 bg-white rounded-[3.5rem] p-10 border border-slate-200 shadow-xl flex flex-col">
+               <div className="w-16 h-16 rounded-[1.5rem] bg-orange-500 flex items-center justify-center text-white mb-8 shadow-lg shadow-orange-100"><Info size={28} /></div>
+               <h4 className="text-[11px] font-black uppercase tracking-[0.3em] text-slate-400 mb-8">Set Insights</h4>
+               <div className="flex-1 space-y-8">
+                  <div className="flex gap-4">
+                     <div className="w-1 h-full bg-orange-500 rounded-full shrink-0" />
+                     <p className="text-xs text-slate-600 font-bold leading-relaxed">
+                       The Naan lattice occupies the 'Structural Base' quadrant, allowing the complex fats of the main dish to bind efficiently.
+                     </p>
+                  </div>
+                  <div className="flex gap-4">
+                     <div className="w-1 h-full bg-indigo-500 rounded-full shrink-0" />
+                     <p className="text-xs text-slate-600 font-bold leading-relaxed">
+                       Overlap with Lassi represents a 'Temperature Buffer' zone, essential for the spices present in Butter Chicken.
+                     </p>
+                  </div>
+                  <div className="bg-slate-900 text-white p-8 rounded-[2.5rem] border border-white/5 relative overflow-hidden mt-auto">
+                     <div className="absolute top-0 right-0 p-8"><UtensilsCrossed size={18} className="text-orange-500 opacity-40" /></div>
+                     <p className="text-[10px] font-black text-orange-400 uppercase tracking-[0.2em] mb-3">Core Anchor</p>
+                     <p className="text-base font-black uppercase">Butter Chicken</p>
+                  </div>
+               </div>
+            </div>
+         </div>
       </div>
     </div>
   );
@@ -509,8 +737,6 @@ const PairingView: React.FC = () => {
   };
 
   const getPairingPosition = (itemIndex: number) => {
-    // Distribute around center in a circle with safe radius to avoid center overlap
-    // Radius of center item is ~80px, so start pairings at ~190px
     const angle = (itemIndex * (360 / currentPairings.length)) * (Math.PI / 180);
     return { x: Math.cos(angle) * 200, y: Math.sin(angle) * 200 };
   };
@@ -520,9 +746,7 @@ const PairingView: React.FC = () => {
   const handleSwap = (parentId: string, newAlternative: PairingItem) => {
     setCurrentPairings(prev => prev.map(p => {
       if (p.id === parentId) {
-        // Find existing index of this alternative
         const alts = p.alternatives || [];
-        // The current item becomes an alternative, the alternative becomes the main
         const newAlts = [...alts.filter(a => a.id !== newAlternative.id), { ...p, alternatives: undefined }];
         return { ...newAlternative, alternatives: newAlts };
       }
@@ -536,12 +760,11 @@ const PairingView: React.FC = () => {
       <div className="absolute top-8 left-8 z-50">
          <div className="bg-white p-4 rounded-2xl shadow-xl border border-slate-100">
             <h2 className="text-xs font-black uppercase tracking-widest text-slate-800 mb-2">Flavor Pairing Matrix</h2>
-            <p className="text-[10px] font-bold text-slate-400 max-w-xs leading-relaxed"> Tap cards to swap for alternatives. Distribution is based on complementary flavor profiles. No overlap between Master dish and Sides. </p>
+            <p className="text-[10px] font-bold text-slate-400 max-w-xs leading-relaxed"> Tap cards to swap for alternatives. Distribution is based on complementary flavor profiles. </p>
          </div>
       </div>
 
       <div className="relative w-[800px] h-[800px] flex items-center justify-center">
-        {/* Flavor Nodes on Perimeter - No Hover */}
         {TASTES.map((taste, i) => {
           const pos = getPosition(i, 340);
           const isMain = taste === mainTaste;
@@ -565,7 +788,6 @@ const PairingView: React.FC = () => {
           );
         })}
 
-        {/* Connections Lines */}
         <svg className="absolute inset-0 w-full h-full pointer-events-none opacity-10">
            <g transform="translate(400, 400)">
               {TASTES.map((_, i) => {
@@ -576,11 +798,7 @@ const PairingView: React.FC = () => {
            </g>
         </svg>
 
-        {/* Master Dish - Bias Placement */}
-        <div 
-          className="absolute z-30 transition-all duration-700" 
-          style={{ transform: `translate(${mainPos.x}px, ${mainPos.y}px)` }}
-        >
+        <div className="absolute z-30 transition-all duration-700" style={{ transform: `translate(${mainPos.x}px, ${mainPos.y}px)` }}>
           <div className="w-44 h-44 bg-white rounded-[3rem] shadow-2xl border-4 border-slate-900 flex flex-col items-center justify-center p-4 text-center ring-8 ring-slate-50">
              <img src={getIngImage('kola urundai')} className="w-20 h-20 rounded-3xl object-cover mb-2 ring-4 ring-slate-50 shadow-inner" />
              <p className="text-[11px] font-black uppercase text-slate-800 leading-tight">Mutton Kola Urundai</p>
@@ -588,49 +806,29 @@ const PairingView: React.FC = () => {
           </div>
         </div>
 
-        {/* Pairing Items - Distributed with no overlap */}
         {currentPairings.map((item, idx) => {
           const pos = getPairingPosition(idx);
           const isPopupOpen = activePopupId === item.id;
-
           return (
-            <div 
-              key={item.id}
-              className="absolute transition-all duration-700 z-40"
-              style={{ transform: `translate(${pos.x}px, ${pos.y}px)` }}
-            >
+            <div key={item.id} className="absolute transition-all duration-700 z-40" style={{ transform: `translate(${pos.x}px, ${pos.y}px)` }}>
               <div 
                 className="w-32 h-32 bg-white rounded-full p-2 border border-slate-100 shadow-xl cursor-pointer flex flex-col items-center justify-center relative hover:scale-105 transition-transform"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setActivePopupId(isPopupOpen ? null : item.id);
-                }}
+                onClick={(e) => { e.stopPropagation(); setActivePopupId(isPopupOpen ? null : item.id); }}
               >
                  <div className="w-16 h-16 rounded-full overflow-hidden mb-2 border-2 border-slate-50">
                     <img src={item.image} className="w-full h-full object-cover" />
                  </div>
                  <p className="text-[9px] font-black uppercase text-slate-800 text-center px-3 leading-tight truncate w-full">{item.name}</p>
-                 
-                 {/* Selection Check */}
                  <div className="absolute top-0 right-0 bg-green-500 text-white p-1 rounded-full shadow-lg"><CheckCircle2 size={12} /></div>
-
-                 {/* Alternatives Popup */}
                  {isPopupOpen && item.alternatives && (
-                   <div 
-                    className="absolute top-1/2 left-full ml-4 -translate-y-1/2 bg-white rounded-3xl shadow-[0_30px_60px_rgba(0,0,0,0.15)] border border-slate-100 p-4 w-48 z-[100] animate-in slide-in-from-left-2 fade-in"
-                    onClick={(e) => e.stopPropagation()}
-                   >
+                   <div className="absolute top-1/2 left-full ml-4 -translate-y-1/2 bg-white rounded-3xl shadow-2xl border border-slate-100 p-4 w-48 z-[100] animate-in slide-in-from-left-2 fade-in">
                      <div className="flex items-center justify-between mb-3 px-1">
                         <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Alternatives</span>
                         <X size={12} className="text-slate-300 cursor-pointer hover:text-slate-900" onClick={() => setActivePopupId(null)} />
                      </div>
                      <div className="space-y-3">
                         {item.alternatives.map(alt => (
-                          <div 
-                            key={alt.id} 
-                            onClick={() => handleSwap(item.id, alt)}
-                            className="flex items-center gap-3 p-2 rounded-2xl hover:bg-slate-50 transition-colors border border-transparent hover:border-slate-100 group"
-                          >
+                          <div key={alt.id} onClick={() => handleSwap(item.id, alt)} className="flex items-center gap-3 p-2 rounded-2xl hover:bg-slate-50 transition-colors border border-transparent hover:border-slate-100 group">
                              <img src={alt.image} className="w-8 h-8 rounded-full object-cover ring-2 ring-slate-100" />
                              <div className="flex-1 overflow-hidden">
                                 <p className="text-[9px] font-black text-slate-800 truncate">{alt.name}</p>
@@ -650,9 +848,5 @@ const PairingView: React.FC = () => {
     </div>
   );
 };
-
-const ListOrderedIcon: React.FC<{ size?: number }> = ({ size = 16 }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="10" y1="6" x2="21" y2="6"/><line x1="10" y1="12" x2="21" y2="12"/><line x1="10" y1="18" x2="21" y2="18"/><path d="M4 6h1v4"/><path d="M4 10h2"/><path d="M6 18H4c0-1 2-2 2-3s-1-1.5-2-1"/></svg>
-);
 
 export default App;
