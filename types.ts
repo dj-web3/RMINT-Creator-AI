@@ -78,20 +78,30 @@ export interface PairingItem {
   alternatives?: PairingItem[];
 }
 
-// Lattice Types
-export interface LatticeDish {
+// Discovery Types
+export interface DiscoveryAlternative {
   name: string;
-  color: string;
-  x: number; // 0 to 1
-  y: number; // 0 to 1
-  width: number; // 0 to 1
-  height: number; // 0 to 1
+  demand: number;
 }
 
-export interface LatticeSet {
+export interface DiscoveryDish {
+  id: string;
+  name: string;
+  color: string;
+  x: number; 
+  y: number; 
+  width: number; 
+  height: number;
+  demand: number;
+  cookingTime: number; // in minutes
+  cost: number; // in USD
+  alternatives?: DiscoveryAlternative[];
+}
+
+export interface DiscoverySet {
   id: string;
   title: string;
-  dishes: LatticeDish[];
+  dishes: DiscoveryDish[];
 }
 
 export interface AppState {

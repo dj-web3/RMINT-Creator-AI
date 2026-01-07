@@ -34,7 +34,10 @@ import {
   FileText,
   Video,
   Image as ImageIcon,
-  Grid
+  Grid,
+  TrendingUp,
+  ArrowRightLeft,
+  DollarSign
 } from 'lucide-react';
 import { 
   Ingredient, 
@@ -46,8 +49,8 @@ import {
   StepGroup,
   TasteKey,
   PairingItem,
-  LatticeSet,
-  LatticeDish
+  DiscoverySet,
+  DiscoveryDish
 } from './types';
 import { processChefPrompt, analyzeCookingVideo } from './services/geminiService';
 
@@ -84,35 +87,35 @@ const INITIAL_PAIRINGS: PairingItem[] = [
   ]},
 ];
 
-const LATTICE_SETS: LatticeSet[] = [
+const INITIAL_DISCOVERY_SETS: DiscoverySet[] = [
   {
     id: 'set-1',
     title: 'Butter Chicken Fusion Feast',
     dishes: [
-      { name: 'Butter Chicken', color: 'rgba(239, 68, 68, 0.6)', x: 0.35, y: 0.25, width: 0.4, height: 0.5 },
-      { name: 'Naan', color: 'rgba(234, 179, 8, 0.5)', x: 0.15, y: 0.15, width: 0.35, height: 0.35 },
-      { name: 'Lassi', color: 'rgba(255, 192, 203, 0.5)', x: 0.55, y: 0.1, width: 0.25, height: 0.35 },
-      { name: 'Gulab Jamun', color: 'rgba(128, 0, 128, 0.6)', x: 0.5, y: 0.55, width: 0.25, height: 0.25 },
-      { name: 'Chicken Tikka', color: 'rgba(34, 197, 94, 0.5)', x: 0.65, y: 0.4, width: 0.3, height: 0.45 },
-      { name: 'Veg Kolhapuri', color: 'rgba(0, 0, 0, 0.7)', x: 0.82, y: 0.15, width: 0.15, height: 0.7 },
+      { id: 'd1', name: 'Butter Chicken', color: 'rgba(239, 68, 68, 0.6)', x: 0.35, y: 0.15, width: 0.4, height: 0.5, demand: 840, cookingTime: 45, cost: 8.50, alternatives: [{name: 'Spicy Butter Chicken', demand: 910}, {name: 'Butter Paneer', demand: 720}, {name: 'Makhani Prawns', demand: 1100}] },
+      { id: 'd2', name: 'Naan', color: 'rgba(234, 179, 8, 0.5)', x: 0.15, y: 0.05, width: 0.35, height: 0.35, demand: 1200, cookingTime: 10, cost: 1.20, alternatives: [{name: 'Garlic Naan', demand: 1450}, {name: 'Butter Roti', demand: 890}, {name: 'Laccha Paratha', demand: 1020}] },
+      { id: 'd3', name: 'Lassi', color: 'rgba(255, 192, 203, 0.5)', x: 0.55, y: 0.05, width: 0.25, height: 0.35, demand: 450, cookingTime: 5, cost: 2.10, alternatives: [{name: 'Mango Lassi', demand: 780}, {name: 'Salted Lassi', demand: 320}, {name: 'Chaas', demand: 490}] },
+      { id: 'd4', name: 'Gulab Jamun', color: 'rgba(128, 0, 128, 0.6)', x: 0.5, y: 0.45, width: 0.25, height: 0.25, demand: 620, cookingTime: 20, cost: 3.40, alternatives: [{name: 'Rasmalai', demand: 590}, {name: 'Kulfi', demand: 410}, {name: 'Jalebi', demand: 880}] },
+      { id: 'd5', name: 'Chicken Tikka', color: 'rgba(34, 197, 94, 0.5)', x: 0.65, y: 0.3, width: 0.3, height: 0.45, demand: 980, cookingTime: 30, cost: 6.20, alternatives: [{name: 'Hariyali Kebab', demand: 750}, {name: 'Paneer Tikka', demand: 680}, {name: 'Seekh Kebab', demand: 1050}] },
+      { id: 'd6', name: 'Veg Kolhapuri', color: 'rgba(0, 0, 0, 0.7)', x: 0.82, y: 0.05, width: 0.15, height: 0.7, demand: 310, cookingTime: 35, cost: 4.80, alternatives: [{name: 'Veg Handi', demand: 420}, {name: 'Bhindi Masala', demand: 290}, {name: 'Mixed Veg', demand: 350}] },
     ]
   },
   {
     id: 'set-2',
     title: 'Northern Classic Combo',
     dishes: [
-      { name: 'Butter Chicken', color: 'rgba(239, 68, 68, 0.6)', x: 0.3, y: 0.3, width: 0.45, height: 0.5 },
-      { name: 'Garlic Naan', color: 'rgba(234, 179, 8, 0.5)', x: 0.1, y: 0.2, width: 0.35, height: 0.4 },
-      { name: 'Chaas', color: 'rgba(147, 197, 253, 0.5)', x: 0.6, y: 0.1, width: 0.3, height: 0.4 },
-      { name: 'Kadhai Paneer', color: 'rgba(74, 222, 128, 0.6)', x: 0.55, y: 0.5, width: 0.35, height: 0.35 },
-      { name: 'Rasmalai', color: 'rgba(252, 211, 77, 0.5)', x: 0.45, y: 0.7, width: 0.25, height: 0.2 },
+      { id: 'd7', name: 'Butter Chicken', color: 'rgba(239, 68, 68, 0.6)', x: 0.3, y: 0.2, width: 0.45, height: 0.5, demand: 890, cookingTime: 45, cost: 8.50, alternatives: [{name: 'Murgh Makhani', demand: 840}, {name: 'Chicken Korma', demand: 720}, {name: 'Tandoori Chicken', demand: 1300}] },
+      { id: 'd8', name: 'Garlic Naan', color: 'rgba(234, 179, 8, 0.5)', x: 0.1, y: 0.1, width: 0.35, height: 0.4, demand: 1100, cookingTime: 12, cost: 1.50, alternatives: [{name: 'Butter Naan', demand: 1200}, {name: 'Cheese Naan', demand: 1550}, {name: 'Peshawari Naan', demand: 980}] },
+      { id: 'd9', name: 'Chaas', color: 'rgba(147, 197, 253, 0.5)', x: 0.6, y: 0.05, width: 0.3, height: 0.4, demand: 540, cookingTime: 5, cost: 1.20, alternatives: [{name: 'Jaljeera', demand: 420}, {name: 'Kokum Sharbat', demand: 380}, {name: 'Nimbu Pani', depth: 710}] },
+      { id: 'd10', name: 'Kadhai Paneer', color: 'rgba(74, 222, 128, 0.6)', x: 0.55, y: 0.4, width: 0.35, height: 0.35, demand: 720, cookingTime: 25, cost: 5.50, alternatives: [{name: 'Paneer Lababdar', demand: 680}, {name: 'Palak Paneer', demand: 920}, {name: 'Mutter Paneer', demand: 610}] },
+      { id: 'd11', name: 'Rasmalai', color: 'rgba(252, 211, 77, 0.5)', x: 0.45, y: 0.6, width: 0.25, height: 0.2, demand: 410, cookingTime: 15, cost: 4.20, alternatives: [{name: 'Gajar Halwa', demand: 580}, {name: 'Rabri', demand: 320}, {name: 'Ice Cream', demand: 950}] },
     ]
   }
 ];
 
-const NODE_WIDTH = 180; 
-const NODE_HEIGHT = 140; 
-const GRID_SIZE = 20;
+const NODE_WIDTH = 180;
+// Fixed: Added NODE_HEIGHT constant definition
+const NODE_HEIGHT = 160;
 
 const TASTES: TasteKey[] = ['sweet', 'bitter', 'sour', 'umami', 'salty', 'pungency', 'alcohol', 'fat'];
 
@@ -127,7 +130,7 @@ const ActionIcon: React.FC<{ type: ActionIconType; size?: number; className?: st
 };
 
 const App: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'playground' | 'spaces' | 'timeline' | 'pairing' | 'lattice'>('playground');
+  const [activeTab, setActiveTab] = useState<'playground' | 'spaces' | 'timeline' | 'pairing' | 'discovery'>('playground');
   const [ingredients, setIngredients] = useState<Ingredient[]>(MOCK_INGREDIENTS);
   const [nodes, setNodes] = useState<Node[]>([]);
   const [edges, setEdges] = useState<Edge[]>([]);
@@ -251,7 +254,7 @@ const App: React.FC = () => {
               { id: 'spaces', label: 'Spaces', icon: BoxSelect },
               { id: 'timeline', label: 'Timeline', icon: Clock },
               { id: 'pairing', label: 'Pairing', icon: Wine },
-              { id: 'lattice', label: 'Lattice', icon: Grid }
+              { id: 'discovery', label: 'Discovery', icon: Grid }
             ].map(tab => (
               <button 
                 key={tab.id}
@@ -363,8 +366,8 @@ const App: React.FC = () => {
           <PairingView />
         )}
 
-        {activeTab === 'lattice' && (
-          <LatticeView />
+        {activeTab === 'discovery' && (
+          <DiscoveryView />
         )}
       </div>
 
@@ -626,98 +629,197 @@ const SpacesView: React.FC = () => {
   );
 };
 
-const LatticeView: React.FC = () => {
+const DiscoveryView: React.FC = () => {
+  const [sets, setSets] = useState<DiscoverySet[]>(INITIAL_DISCOVERY_SETS);
   const [currentSetIndex, setCurrentSetIndex] = useState(0);
-  const currentSet = LATTICE_SETS[currentSetIndex];
+  const [selectedDishId, setSelectedDishId] = useState<string | null>(null);
+  
+  const currentSet = sets[currentSetIndex];
+
+  const handleSwapItem = (dishId: string, newAlt: {name: string, demand: number}) => {
+    setSets(prev => prev.map((s, idx) => {
+      if (idx !== currentSetIndex) return s;
+      return {
+        ...s,
+        dishes: s.dishes.map(d => d.id === dishId ? { 
+          ...d, 
+          name: newAlt.name, 
+          demand: newAlt.demand,
+          // Generate pseudo-random updates for table details on swap
+          cookingTime: Math.max(5, d.cookingTime + (Math.floor(Math.random() * 10) - 5)),
+          cost: parseFloat((d.cost + (Math.random() * 2 - 1)).toFixed(2))
+        } : d)
+      };
+    }));
+    setSelectedDishId(null);
+  };
 
   return (
-    <div className="flex-1 flex flex-col bg-[#fcfaf8] overflow-hidden p-12">
-      <div className="flex items-center justify-between mb-10 px-6">
+    <div className="flex-1 flex flex-col bg-[#fcfaf8] overflow-y-auto p-12 scroll-smooth">
+      <div className="flex items-center justify-between mb-10 px-6 shrink-0">
         <div>
            <h2 className="text-5xl font-black text-slate-800 uppercase tracking-tighter">{currentSet.title}</h2>
-           <p className="text-[11px] font-black text-slate-400 uppercase tracking-[0.4em] mt-3">Advanced Geometric Pairing Analysis</p>
+           <p className="text-[11px] font-black text-slate-400 uppercase tracking-[0.4em] mt-3">Advanced Discovery Pairing Analysis</p>
         </div>
         <div className="flex gap-4">
-           <button onClick={() => setCurrentSetIndex((p) => (p - 1 + LATTICE_SETS.length) % LATTICE_SETS.length)} className="w-16 h-16 bg-white border border-slate-200 rounded-3xl flex items-center justify-center hover:bg-slate-50 transition-all hover:shadow-lg active:scale-95 text-slate-400 hover:text-slate-900"><ChevronLeft size={24}/></button>
-           <button onClick={() => setCurrentSetIndex((p) => (p + 1) % LATTICE_SETS.length)} className="w-16 h-16 bg-slate-900 text-white rounded-3xl flex items-center justify-center hover:bg-black transition-all hover:shadow-xl active:scale-95 shadow-lg shadow-slate-200"><ChevronRight size={24}/></button>
+           <button onClick={() => setCurrentSetIndex((p) => (p - 1 + sets.length) % sets.length)} className="w-16 h-16 bg-white border border-slate-200 rounded-3xl flex items-center justify-center hover:bg-slate-50 transition-all hover:shadow-lg active:scale-95 text-slate-400 hover:text-slate-900"><ChevronLeft size={24}/></button>
+           <button onClick={() => setCurrentSetIndex((p) => (p + 1) % sets.length)} className="w-16 h-16 bg-slate-900 text-white rounded-3xl flex items-center justify-center hover:bg-black transition-all hover:shadow-xl active:scale-95 shadow-lg shadow-slate-200"><ChevronRight size={24}/></button>
         </div>
       </div>
 
-      <div className="flex-1 flex gap-12 overflow-hidden">
+      <div className="flex gap-12 min-h-[700px]">
+         {/* Main Visualization Area */}
          <div className="flex-1 bg-white rounded-[4rem] border border-slate-200 p-16 relative overflow-hidden shadow-[0_30px_100px_rgba(0,0,0,0.03)] group">
             <div className="absolute inset-0 opacity-[0.03] pointer-events-none">
-               <svg width="100%" height="100%"><defs><pattern id="lattice-grid" width="120" height="120" patternUnits="userSpaceOnUse"><path d="M 120 0 L 0 0 0 120" fill="none" stroke="black" strokeWidth="2"/></pattern></defs><rect width="100%" height="100%" fill="url(#lattice-grid)" /></svg>
+               <svg width="100%" height="100%"><defs><pattern id="discovery-grid" width="120" height="120" patternUnits="userSpaceOnUse"><path d="M 120 0 L 0 0 0 120" fill="none" stroke="black" strokeWidth="2"/></pattern></defs><rect width="100%" height="100%" fill="url(#discovery-grid)" /></svg>
             </div>
             
             <div className="w-full h-full relative bg-slate-50/50 rounded-3xl border border-slate-100 overflow-hidden">
-               {currentSet.dishes.map((dish, i) => (
+               {currentSet.dishes.map((dish) => (
                  <div 
-                  key={i} 
-                  className="absolute border border-black/5 transition-all duration-[1200ms] flex flex-col items-center justify-center text-center p-4"
+                  key={dish.id} 
+                  onClick={() => setSelectedDishId(dish.id === selectedDishId ? null : dish.id)}
+                  className={`absolute border border-black/5 transition-all duration-700 flex flex-col items-center justify-center text-center p-4 cursor-pointer group/node ${selectedDishId === dish.id ? 'ring-4 ring-orange-500 ring-offset-2 z-20 shadow-2xl' : 'z-1'}`}
                   style={{
                     left: `${dish.x * 100}%`,
                     top: `${dish.y * 100}%`,
                     width: `${dish.width * 100}%`,
                     height: `${dish.height * 100}%`,
                     backgroundColor: dish.color,
-                    zIndex: dish.name === 'Butter Chicken' ? 10 : 1
                   }}
                  >
-                    <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-700 flex flex-col items-center">
-                       <span className="text-[11px] font-black text-white uppercase tracking-wider bg-black/60 px-4 py-2 rounded-2xl backdrop-blur-md shadow-2xl mb-2">{dish.name}</span>
-                       <div className="flex gap-1">
-                          <div className="w-1 h-1 rounded-full bg-white/40" />
-                          <div className="w-1 h-1 rounded-full bg-white/40" />
-                          <div className="w-1 h-1 rounded-full bg-white/40" />
+                    <div className="flex flex-col items-center relative">
+                       <span className="text-[11px] font-black text-white uppercase tracking-wider bg-black/40 px-3 py-1.5 rounded-xl backdrop-blur-md shadow-lg mb-2">{dish.name}</span>
+                       <div className="flex items-center gap-1.5 bg-white/20 backdrop-blur-sm px-2 py-0.5 rounded-lg border border-white/10">
+                          <TrendingUp size={10} className="text-white/80" />
+                          <span className="text-[12px] font-black text-white drop-shadow-md">{dish.demand}</span>
                        </div>
                     </div>
-                 </div>
-               ))}
-               
-               <div className="absolute bottom-8 left-8 bg-white/95 backdrop-blur-xl p-8 rounded-[3rem] shadow-2xl border border-slate-200 w-72 z-50 animate-in slide-in-from-bottom-4">
-                  <div className="flex items-center gap-3 mb-6">
-                     <Grid size={18} className="text-orange-500" />
-                     <p className="text-[10px] font-black text-slate-800 uppercase tracking-widest">Active Schema</p>
-                  </div>
-                  <div className="space-y-4">
-                     {currentSet.dishes.map((dish, i) => (
-                       <div key={i} className="flex items-center gap-4 group/item">
-                          <div className="w-4 h-4 rounded-lg shadow-sm group-hover/item:scale-125 transition-transform" style={{ backgroundColor: dish.color }} />
-                          <div className="flex-1 overflow-hidden">
-                             <p className="text-[11px] font-black text-slate-700 uppercase truncate leading-none mb-1">{dish.name}</p>
-                             <div className="h-0.5 w-full bg-slate-100 rounded-full overflow-hidden">
-                                <div className="h-full bg-slate-300 rounded-full transition-all duration-1000" style={{ width: `${Math.random() * 60 + 40}%` }} />
-                             </div>
+
+                    {/* Enhanced Swap Popup - Vertical options with demand */}
+                    {selectedDishId === dish.id && dish.alternatives && (
+                       <div 
+                        className="absolute bottom-full mb-4 left-1/2 -translate-x-1/2 bg-white rounded-3xl shadow-[0_20px_60px_rgba(0,0,0,0.2)] p-2 border border-slate-100 min-w-[200px] z-[100] animate-in slide-in-from-bottom-2"
+                        onClick={(e) => e.stopPropagation()}
+                       >
+                          <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest px-4 pt-3 pb-2 text-center">Swap Item</p>
+                          <div className="flex flex-col">
+                            {dish.alternatives.map(alt => (
+                              <button 
+                                key={alt.name}
+                                onClick={() => handleSwapItem(dish.id, alt)}
+                                className="group/btn px-4 py-3 hover:bg-slate-50 rounded-2xl flex items-center justify-between gap-6 transition-all"
+                              >
+                                 <div className="flex items-center gap-3">
+                                    <div className="w-6 h-6 rounded-lg bg-orange-100 flex items-center justify-center text-orange-500 group-hover/btn:bg-orange-500 group-hover/btn:text-white transition-colors">
+                                       <ArrowRightLeft size={10} />
+                                    </div>
+                                    <span className="text-[10px] font-black uppercase text-slate-700 whitespace-nowrap">{alt.name}</span>
+                                 </div>
+                                 <div className="flex items-center gap-1">
+                                    <TrendingUp size={10} className="text-orange-300" />
+                                    <span className="text-[10px] font-black text-slate-400">{alt.demand}</span>
+                                 </div>
+                              </button>
+                            ))}
                           </div>
                        </div>
-                     ))}
+                    )}
+                 </div>
+               ))}
+            </div>
+         </div>
+
+         {/* Sidebar with Info and Insights */}
+         <div className="w-96 flex flex-col gap-8">
+            {/* Dynamic Details Table - Moved from bottom for better integration */}
+            <div className="bg-white p-8 rounded-[3.5rem] border border-slate-200 shadow-xl overflow-hidden flex flex-col">
+               <div className="flex items-center gap-3 mb-8 px-2">
+                  <Grid size={18} className="text-orange-500" />
+                  <p className="text-[11px] font-black text-slate-800 uppercase tracking-[0.2em]">Live Menu Audit</p>
+               </div>
+               
+               <div className="flex-1 overflow-x-hidden overflow-y-auto">
+                 <table className="w-full text-left">
+                    <thead>
+                       <tr className="border-b border-slate-100">
+                          <th className="pb-4 text-[9px] font-black text-slate-400 uppercase tracking-widest">Item</th>
+                          <th className="pb-4 text-[9px] font-black text-slate-400 uppercase tracking-widest text-center">Time</th>
+                          <th className="pb-4 text-[9px] font-black text-slate-400 uppercase tracking-widest text-center">Cost</th>
+                          <th className="pb-4 text-[9px] font-black text-slate-400 uppercase tracking-widest text-right">Demand</th>
+                       </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-50">
+                       {currentSet.dishes.map((dish) => (
+                          <tr key={dish.id} className={`group ${selectedDishId === dish.id ? 'bg-orange-50/50' : ''} transition-colors`}>
+                             <td className="py-4">
+                                <div className="flex items-center gap-2">
+                                   <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: dish.color }} />
+                                   <span className="text-[10px] font-black text-slate-700 uppercase truncate max-w-[80px]">{dish.name}</span>
+                                </div>
+                             </td>
+                             <td className="py-4 text-center">
+                                <span className="text-[10px] font-bold text-slate-500">{dish.cookingTime}m</span>
+                             </td>
+                             <td className="py-4 text-center">
+                                <span className="text-[10px] font-bold text-slate-500">${dish.cost.toFixed(2)}</span>
+                             </td>
+                             <td className="py-4 text-right">
+                                <span className="text-[10px] font-black text-slate-800">{dish.demand}</span>
+                             </td>
+                          </tr>
+                       ))}
+                    </tbody>
+                 </table>
+               </div>
+            </div>
+
+            <div className="bg-slate-900 p-10 rounded-[3.5rem] text-white flex flex-col shadow-2xl relative overflow-hidden">
+               <div className="absolute top-0 right-0 p-10 opacity-10"><UtensilsCrossed size={48} /></div>
+               <h4 className="text-[11px] font-black uppercase tracking-[0.3em] text-orange-400 mb-8">Performance Summary</h4>
+               <div className="space-y-8">
+                  <div className="flex gap-4">
+                     <div className="w-1 h-12 bg-orange-500 rounded-full shrink-0" />
+                     <div>
+                        <p className="text-[9px] font-black text-white/30 uppercase tracking-widest mb-1">Avg Demand Index</p>
+                        <p className="text-2xl font-black">{(currentSet.dishes.reduce((acc, d) => acc + d.demand, 0) / currentSet.dishes.length).toFixed(0)}</p>
+                     </div>
+                  </div>
+                  <div className="flex gap-4">
+                     <div className="w-1 h-12 bg-indigo-500 rounded-full shrink-0" />
+                     <div>
+                        <p className="text-[9px] font-black text-white/30 uppercase tracking-widest mb-1">Total Prep Time</p>
+                        <p className="text-2xl font-black">{currentSet.dishes.reduce((acc, d) => acc + d.cookingTime, 0)}m</p>
+                     </div>
                   </div>
                </div>
             </div>
          </div>
+      </div>
 
-         <div className="w-96 flex flex-col gap-8">
-            <div className="flex-1 bg-white rounded-[3.5rem] p-10 border border-slate-200 shadow-xl flex flex-col">
-               <div className="w-16 h-16 rounded-[1.5rem] bg-orange-500 flex items-center justify-center text-white mb-8 shadow-lg shadow-orange-100"><Info size={28} /></div>
-               <h4 className="text-[11px] font-black uppercase tracking-[0.3em] text-slate-400 mb-8">Set Insights</h4>
-               <div className="flex-1 space-y-8">
-                  <div className="flex gap-4">
-                     <div className="w-1 h-full bg-orange-500 rounded-full shrink-0" />
-                     <p className="text-xs text-slate-600 font-bold leading-relaxed">
-                       The Naan lattice occupies the 'Structural Base' quadrant, allowing the complex fats of the main dish to bind efficiently.
-                     </p>
-                  </div>
-                  <div className="flex gap-4">
-                     <div className="w-1 h-full bg-indigo-500 rounded-full shrink-0" />
-                     <p className="text-xs text-slate-600 font-bold leading-relaxed">
-                       Overlap with Lassi represents a 'Temperature Buffer' zone, essential for the spices present in Butter Chicken.
-                     </p>
-                  </div>
-                  <div className="bg-slate-900 text-white p-8 rounded-[2.5rem] border border-white/5 relative overflow-hidden mt-auto">
-                     <div className="absolute top-0 right-0 p-8"><UtensilsCrossed size={18} className="text-orange-500 opacity-40" /></div>
-                     <p className="text-[10px] font-black text-orange-400 uppercase tracking-[0.2em] mb-3">Core Anchor</p>
-                     <p className="text-base font-black uppercase">Butter Chicken</p>
-                  </div>
+      {/* Discovery Schema Card - Moved Below Lattice/Visualization Section */}
+      <div className="mt-12 px-6">
+         <div className="bg-white p-10 rounded-[3.5rem] border border-slate-200 shadow-xl flex items-center justify-between">
+            <div className="flex items-center gap-8 max-w-2xl">
+               <div className="w-20 h-20 rounded-[2rem] bg-orange-500 flex items-center justify-center text-white shrink-0 shadow-xl shadow-orange-100">
+                  <Info size={36} />
+               </div>
+               <div>
+                  <h3 className="text-2xl font-black text-slate-800 uppercase mb-4 leading-none">Market Demand Geometry</h3>
+                  <p className="text-sm text-slate-400 font-bold leading-relaxed">
+                    The visualization above maps regional demand volumes. Overlapping rectangles indicate menu items that share a common customer persona. Click items to optimize your menu yield using real-time market alternatives.
+                  </p>
+               </div>
+            </div>
+            <div className="flex gap-6 pr-4">
+               <div className="text-center">
+                  <p className="text-[9px] font-black text-slate-300 uppercase tracking-widest mb-2">Efficiency Rating</p>
+                  <div className="text-3xl font-black text-slate-800 tracking-tighter">A+</div>
+               </div>
+               <div className="w-px h-12 bg-slate-100 self-center" />
+               <div className="text-center">
+                  <p className="text-[9px] font-black text-slate-300 uppercase tracking-widest mb-2">Menu Balance</p>
+                  <div className="text-3xl font-black text-orange-500 tracking-tighter">94%</div>
                </div>
             </div>
          </div>
