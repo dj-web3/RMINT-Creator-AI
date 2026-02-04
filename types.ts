@@ -82,16 +82,18 @@ export interface PairingItem {
 export interface DiscoveryAlternative {
   name: string;
   demand: number;
+  cookingTime: number;
+  cost: number;
 }
 
 export interface DiscoveryDish {
   id: string;
   name: string;
   color: string;
-  x: number; 
-  y: number; 
-  width: number; 
-  height: number;
+  x: number; // 0-100 percentage
+  y: number; // 0-100 percentage
+  width: number; // 0-100 percentage
+  height: number; // 0-100 percentage
   demand: number;
   cookingTime: number; // in minutes
   cost: number; // in USD
