@@ -34,25 +34,47 @@ export const INITIAL_STEP_GROUPS: StepGroup[] = [
 export const INITIAL_DISCOVERY_SETS: DiscoverySet[] = [
   {
     id: 'set-1',
-    title: 'BUTTER CHICKEN LATTICE A',
+    title: 'SIGNATURE MAKHANI LATTICE',
     dishes: [
-      { id: 'bc-1', name: 'BUTTER CHICKEN', color: '#f87171', x: 10, y: 15, width: 45, height: 60, demand: 98, cookingTime: 45, cost: 12, alternatives: [{name: 'KADHAI CHICKEN', demand: 92, cookingTime: 35, cost: 11}, {name: 'CHICKEN CURRY', demand: 85, cookingTime: 30, cost: 9}, {name: 'TIKKA MASALA', demand: 95, cookingTime: 50, cost: 13}] },
-      { id: 'bc-2', name: 'GARLIC NAAN', color: '#fde047', x: 45, y: 10, width: 40, height: 40, demand: 96, cookingTime: 120, cost: 1.5, alternatives: [{name: 'BUTTER NAAN', demand: 94, cookingTime: 120, cost: 1.2}, {name: 'TANDOORI ROTI', demand: 88, cookingTime: 60, cost: 0.8}, {name: 'MISSI ROTI', demand: 75, cookingTime: 90, cost: 2}] },
-      { id: 'bc-3', name: 'LASSI', color: '#60a5fa', x: 70, y: 40, width: 25, height: 50, demand: 91, cookingTime: 15, cost: 4, alternatives: [{name: 'CHAAS', demand: 82, cookingTime: 10, cost: 2}, {name: 'MANGO SHAKE', demand: 95, cookingTime: 20, cost: 5}, {name: 'COLD COFFEE', demand: 70, cookingTime: 15, cost: 4.5}] },
-      { id: 'bc-4', name: 'GULAB JAMUN', color: '#fb923c', x: 20, y: 65, width: 35, height: 30, demand: 94, cookingTime: 40, cost: 3, alternatives: [{name: 'RASMALAI', demand: 96, cookingTime: 60, cost: 4}, {name: 'GAJAR HALWA', demand: 89, cookingTime: 90, cost: 5}, {name: 'KULFI', demand: 82, cookingTime: 30, cost: 2.5}] },
-      { id: 'bc-5', name: 'CHICKEN TIKKA', color: '#4ade80', x: 50, y: 55, width: 45, height: 40, demand: 88, cookingTime: 240, cost: 18, alternatives: [{name: 'PANEER TIKKA', demand: 82, cookingTime: 180, cost: 14}, {name: 'SEEKH KEBAB', demand: 91, cookingTime: 210, cost: 16}, {name: 'FISH FRY', demand: 75, cookingTime: 30, cost: 20}] },
-      { id: 'bc-6', name: 'VEG KOLHAPURI', color: '#a78bfa', x: 0, y: 40, width: 30, height: 50, demand: 78, cookingTime: 25, cost: 8, alternatives: [{name: 'PANEER BUTTER', demand: 95, cookingTime: 30, cost: 12}, {name: 'DAL TADKA', demand: 88, cookingTime: 20, cost: 6}, {name: 'MIX VEG', demand: 72, cookingTime: 25, cost: 7}] },
+      { id: 'bc-1', name: 'BUTTER CHICKEN', color: '#f87171', x: 5, y: 15, width: 50, height: 60, demand: 98, cookingTime: 45, cost: 12, alternatives: [{name: 'KADHAI CHICKEN', demand: 92, cookingTime: 35, cost: 11}, {name: 'CHICKEN CURRY', demand: 85, cookingTime: 30, cost: 9}] },
+      { id: 'bc-2', name: 'NAAN', color: '#fde047', x: 45, y: 5, width: 45, height: 40, demand: 96, cookingTime: 120, cost: 1.5, alternatives: [{name: 'BUTTER NAAN', demand: 94, cookingTime: 120, cost: 1.2}, {name: 'TANDOORI ROTI', demand: 88, cookingTime: 60, cost: 0.8}] },
+      { id: 'bc-3', name: 'LASSI', color: '#60a5fa', x: 75, y: 40, width: 20, height: 55, demand: 91, cookingTime: 15, cost: 4, alternatives: [{name: 'CHAAS', demand: 82, cookingTime: 10, cost: 2}] },
+      { id: 'bc-4', name: 'GULAB JAMUN', color: '#fb923c', x: 15, y: 65, width: 35, height: 30, demand: 94, cookingTime: 40, cost: 3, alternatives: [{name: 'RASMALAI', demand: 96, cookingTime: 60, cost: 4}] },
+      { id: 'bc-5', name: 'CHICKEN TIKKA', color: '#4ade80', x: 50, y: 50, width: 40, height: 45, demand: 88, cookingTime: 240, cost: 18, alternatives: [{name: 'PANEER TIKKA', demand: 82, cookingTime: 180, cost: 14}] },
+      { id: 'bc-6', name: 'VEG KOLHAPURI', color: '#a78bfa', x: 0, y: 45, width: 25, height: 45, demand: 78, cookingTime: 25, cost: 8, alternatives: [{name: 'PANEER BUTTER', demand: 95, cookingTime: 30, cost: 12}] },
     ]
   },
   {
     id: 'set-2',
-    title: 'BUTTER CHICKEN LATTICE B',
+    title: 'STATION PRODUCTION LATTICE B',
     dishes: [
-      { id: 'bc2-1', name: 'BUTTER CHICKEN', color: '#f87171', x: 15, y: 10, width: 50, height: 55, demand: 98, cookingTime: 45, cost: 12, alternatives: [{name: 'CHICKEN AFGHANI', demand: 88, cookingTime: 50, cost: 14}, {name: 'WHITE GRAVY CHICKEN', demand: 82, cookingTime: 45, cost: 13}] },
-      { id: 'bc2-2', name: 'GARLIC NAAN', color: '#fde047', x: 55, y: 5, width: 35, height: 35, demand: 96, cookingTime: 120, cost: 1.5, alternatives: [{name: 'LACCHA PARATHA', demand: 92, cookingTime: 90, cost: 2.5}, {name: 'RUMALI ROTI', demand: 85, cookingTime: 30, cost: 1.5}] },
-      { id: 'bc2-3', name: 'CHAAS', color: '#a5f3fc', x: 75, y: 35, width: 20, height: 60, demand: 82, cookingTime: 10, cost: 2, alternatives: [{name: 'SWEET LASSI', demand: 91, cookingTime: 15, cost: 4}, {name: 'JALJEERA', demand: 78, cookingTime: 5, cost: 1.5}] },
-      { id: 'bc2-4', name: 'KADHAI PANEER', color: '#c084fc', x: 5, y: 50, width: 45, height: 45, demand: 95, cookingTime: 30, cost: 12, alternatives: [{name: 'MATAR PANEER', demand: 88, cookingTime: 25, cost: 10}, {name: 'PANEER LABABDAR', demand: 93, cookingTime: 35, cost: 14}] },
-      { id: 'bc2-5', name: 'RASMALAI', color: '#fecaca', x: 45, y: 60, width: 40, height: 35, demand: 96, cookingTime: 60, cost: 4, alternatives: [{name: 'RABRI', demand: 92, cookingTime: 120, cost: 6}, {name: 'JALEBI', demand: 95, cookingTime: 45, cost: 3.5}] },
+      { id: 'bc2-1', name: 'BUTTER CHICKEN', color: '#f87171', x: 10, y: 10, width: 55, height: 50, demand: 98, cookingTime: 45, cost: 12, alternatives: [{name: 'CHICKEN AFGHANI', demand: 88, cookingTime: 50, cost: 14}] },
+      { id: 'bc2-2', name: 'GARLIC NAAN', color: '#fde047', x: 60, y: 5, width: 35, height: 40, demand: 96, cookingTime: 120, cost: 1.5, alternatives: [{name: 'LACCHA PARATHA', demand: 92, cookingTime: 90, cost: 2.5}] },
+      { id: 'bc2-3', name: 'CHAAS', color: '#a5f3fc', x: 80, y: 35, width: 15, height: 60, demand: 82, cookingTime: 10, cost: 2, alternatives: [{name: 'SWEET LASSI', demand: 91, cookingTime: 15, cost: 4}] },
+      { id: 'bc2-4', name: 'KADHAI PANEER', color: '#c084fc', x: 5, y: 55, width: 40, height: 40, demand: 95, cookingTime: 30, cost: 12, alternatives: [{name: 'MATAR PANEER', demand: 88, cookingTime: 25, cost: 10}] },
+      { id: 'bc2-5', name: 'RASMALAI', color: '#fecaca', x: 45, y: 65, width: 45, height: 30, demand: 96, cookingTime: 60, cost: 4, alternatives: [{name: 'RABRI', demand: 92, cookingTime: 120, cost: 6}] },
+    ]
+  },
+  {
+    id: 'set-3',
+    title: 'COASTAL FUSION LATTICE',
+    dishes: [
+      { id: 'cf-1', name: 'PRAWN CURRY', color: '#fb923c', x: 15, y: 10, width: 45, height: 55, demand: 94, cookingTime: 20, cost: 22, alternatives: [{name: 'FISH MOILEE', demand: 89, cookingTime: 25, cost: 18}] },
+      { id: 'cf-2', name: 'APPAM', color: '#f8fafc', x: 50, y: 5, width: 40, height: 40, demand: 92, cookingTime: 45, cost: 2.5, alternatives: [{name: 'NEER DOSA', demand: 88, cookingTime: 30, cost: 2}] },
+      { id: 'cf-3', name: 'TENDER COCONUT', color: '#ecfeff', x: 80, y: 40, width: 15, height: 50, demand: 85, cookingTime: 5, cost: 6, alternatives: [{name: 'SOL KADHI', demand: 91, cookingTime: 10, cost: 3}] },
+      { id: 'cf-4', name: 'PAYASAM', color: '#fdf4ff', x: 5, y: 60, width: 35, height: 35, demand: 97, cookingTime: 40, cost: 5, alternatives: [{name: 'UNNI APPAM', demand: 84, cookingTime: 20, cost: 3}] },
+      { id: 'cf-5', name: 'SQUID FRY', color: '#86efac', x: 45, y: 50, width: 45, height: 45, demand: 81, cookingTime: 15, cost: 15, alternatives: [{name: 'BOMBAY DUCK', demand: 76, cookingTime: 10, cost: 10}] },
+    ]
+  },
+  {
+    id: 'set-4',
+    title: 'MODERN STREET LATTICE',
+    dishes: [
+      { id: 'ms-1', name: 'PANEER TIKKA ROLL', color: '#f472b6', x: 10, y: 10, width: 40, height: 50, demand: 93, cookingTime: 15, cost: 9, alternatives: [{name: 'EGG ROLL', demand: 88, cookingTime: 10, cost: 6}] },
+      { id: 'ms-2', name: 'PAV BHAJI', color: '#f87171', x: 45, y: 15, width: 45, height: 45, demand: 99, cookingTime: 30, cost: 7, alternatives: [{name: 'VADA PAV', demand: 95, cookingTime: 5, cost: 3}] },
+      { id: 'ms-3', name: 'MASALA CHAI', color: '#78350f', x: 75, y: 50, width: 20, height: 40, demand: 96, cookingTime: 12, cost: 1.5, alternatives: [{name: 'KULHAD COFFEE', demand: 82, cookingTime: 8, cost: 2.5}] },
+      { id: 'ms-4', name: 'JALEBI', color: '#fbbf24', x: 20, y: 65, width: 35, height: 30, demand: 95, cookingTime: 45, cost: 4, alternatives: [{name: 'IMARTI', demand: 88, cookingTime: 60, cost: 4.5}] },
+      { id: 'ms-5', name: 'MOMOS', color: '#f1f5f9', x: 50, y: 60, width: 30, height: 35, demand: 98, cookingTime: 20, cost: 8, alternatives: [{name: 'DIM SUM', demand: 92, cookingTime: 25, cost: 12}] },
     ]
   }
 ];
