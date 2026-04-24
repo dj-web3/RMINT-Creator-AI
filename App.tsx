@@ -1,9 +1,9 @@
 
 import React, { useState } from 'react';
 import { ChefHat, Layout, BoxSelect, CalendarDays, Wine, UtensilsCrossed } from 'lucide-react';
-import { PlaygroundView } from './features/playground/PlaygroundView';
-import { SpacesView } from './features/spaces/SpacesView';
-import { PlanView } from './features/plan/PlanView';
+import { CreateMenuView } from './features/create-menu/CreateMenuView';
+import { CreateGuideView } from './features/create-guide/CreateGuideView';
+import { CreatePlanView } from './features/create-plan/CreatePlanView';
 import { PairingView } from './features/pairing/PairingView';
 import { DiscoveryView } from './features/discovery/DiscoveryView';
 import { 
@@ -15,7 +15,7 @@ import {
 import { ChefCategory } from './types';
 
 const App: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'playground' | 'spaces' | 'plan' | 'pairing' | 'discovery'>('playground');
+  const [activeTab, setActiveTab] = useState<'create-menu' | 'create-guide' | 'create-plan' | 'pairing' | 'discovery'>('create-menu');
   const [ingredients, setIngredients] = useState(MOCK_BUTTER_CHICKEN_INGREDIENTS);
   const [nodes, setNodes] = useState(INITIAL_NODES);
   const [edges, setEdges] = useState(INITIAL_EDGES);
@@ -31,9 +31,9 @@ const App: React.FC = () => {
           <h1 className="text-sm font-black tracking-tight text-slate-800 uppercase">CHEF STUDIO</h1>
           <nav className="flex items-center gap-1 ml-6 bg-slate-50 p-1 rounded-lg scale-90">
             {[
-              { id: 'playground', label: 'Playground', icon: Layout }, 
-              { id: 'spaces', label: 'Spaces', icon: BoxSelect }, 
-              { id: 'plan', label: 'Plan', icon: CalendarDays },
+              { id: 'create-menu', label: 'Create Menu', icon: Layout },
+              { id: 'create-guide', label: 'Create Guide', icon: BoxSelect },
+              { id: 'create-plan', label: 'Create Plan', icon: CalendarDays },
               { id: 'pairing', label: 'Pairing', icon: Wine }, 
               { id: 'discovery', label: 'Discovery', icon: UtensilsCrossed }
             ].map(tab => (
@@ -49,21 +49,21 @@ const App: React.FC = () => {
       </header>
 
       <div className="flex flex-1 overflow-hidden relative">
-        {activeTab === 'playground' && (
-          <PlaygroundView 
-            nodes={nodes} setNodes={setNodes} edges={edges} setEdges={setEdges} 
-            stepGroups={stepGroups} setStepGroups={setStepGroups} 
-            ingredients={ingredients} setIngredients={setIngredients} 
+        {activeTab === 'create-menu' && (
+          <CreateMenuView
+            nodes={nodes} setNodes={setNodes} edges={edges} setEdges={setEdges}
+            stepGroups={stepGroups} setStepGroups={setStepGroups}
+            ingredients={ingredients} setIngredients={setIngredients}
           />
         )}
-        {activeTab === 'spaces' && (
-          <SpacesView nodes={nodes} setNodes={setNodes} edges={edges} setEdges={setEdges} />
+        {activeTab === 'create-guide' && (
+          <CreateGuideView nodes={nodes} setNodes={setNodes} edges={edges} setEdges={setEdges} stepGroups={stepGroups} />
         )}
-        {activeTab === 'plan' && (
-          <PlanView stepGroups={stepGroups} chefPool={chefPool} />
+        {activeTab === 'create-plan' && (
+          <CreatePlanView stepGroups={stepGroups} chefPool={chefPool} />
         )}
-        {activeTab === 'pairing' && <PairingView />}
-        {activeTab === 'discovery' && <DiscoveryView />}
+        {activeTab === 'pairing' && <PairingView dishName={nodes[0]?.label} />}
+        {activeTab === 'discovery' && <DiscoveryView dishName={nodes[0]?.label} />}
       </div>
     </div>
   );

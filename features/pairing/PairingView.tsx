@@ -3,7 +3,7 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { Sparkles, ChevronRight, Layout, Filter, Flame, Wine, ChefHat } from 'lucide-react';
 
-export const PairingView: React.FC = () => {
+export const PairingView: React.FC<{ dishName?: string }> = ({ dishName = 'BUTTER CHICKEN' }) => {
   const flavorPoints = [
     { label: 'SWEET', color: '#f472b6', x: 0, y: -220, icon: <Sparkles size={16}/> },
     { label: 'SOUR', color: '#fbbf24', x: 190, y: -110, icon: <ChevronRight size={16}/> },
@@ -30,7 +30,7 @@ export const PairingView: React.FC = () => {
             </g>
           ))}
         </svg>
-        <div className="relative z-10 w-48 h-48 bg-white rounded-[4rem] shadow-2xl border-4 border-slate-900 flex flex-col items-center justify-center p-8 text-center"><ChefHat className="text-orange-500 mb-2" size={38}/><p className="text-[16px] font-black uppercase text-slate-800 leading-tight">BUTTER<br/>CHICKEN</p></div>
+        <div className="relative z-10 w-48 h-48 bg-white rounded-[4rem] shadow-2xl border-4 border-slate-900 flex flex-col items-center justify-center p-8 text-center"><ChefHat className="text-orange-500 mb-2" size={38}/><p className="text-[16px] font-black uppercase text-slate-800 leading-tight">{dishName.split(' ').map((w, i) => <span key={i}>{w}{i < dishName.split(' ').length - 1 ? <br/> : ''}</span>)}</p></div>
         {flavorPoints.map(p => (
           <motion.div key={p.label} whileHover={{ scale: 1.1 }} className="absolute flex flex-col items-center group cursor-pointer" style={{ transform: `translate(${p.x}px, ${p.y}px)` }}>
             <div className="w-14 h-14 rounded-[1.8rem] shadow-xl flex items-center justify-center text-white mb-3 transition-all" style={{ backgroundColor: p.color }}>{p.icon}</div>

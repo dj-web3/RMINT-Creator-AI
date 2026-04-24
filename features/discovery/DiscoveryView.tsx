@@ -1,16 +1,31 @@
 
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronLeft, ChevronRight, FlaskConical, Clock, Scale, Sparkles, AlertCircle } from 'lucide-react';
 import { DiscoverySet, DiscoveryAlternative } from '../../types';
 import { INITIAL_DISCOVERY_SETS } from '../../constants/mockData';
 
-export const DiscoveryView: React.FC = () => {
+export const DiscoveryView: React.FC<{ dishName?: string }> = ({ dishName }) => {
   const [activeSetIndex, setActiveSetIndex] = useState(0);
   const [discoverySets, setDiscoverySets] = useState(INITIAL_DISCOVERY_SETS);
   const [editingDishId, setEditingDishId] = useState<string | null>(null);
+  const [dropdownRect, setDropdownRect] = useState<{ top: number; left: number; isBelow: boolean } | null>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
   const activeSet = discoverySets[activeSetIndex];
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    if (!editingDishId) return;
+    const handleOutside = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setEditingDishId(null);
+        setDropdownRect(null);
+      }
+    };
+    document.addEventListener('mousedown', handleOutside);
+    return () => document.removeEventListener('mousedown', handleOutside);
+  }, [editingDishId]);
 
   const handleDishChange = (dishId: string, alt: DiscoveryAlternative) => {
     setDiscoverySets(prev => prev.map((set, sIdx) => {
@@ -93,84 +108,107 @@ export const DiscoveryView: React.FC = () => {
               </motion.span>
             </div>
             
-            <div className="w-full h-full relative border border-slate-50 rounded-[3.5rem] bg-slate-50/30 overflow-visible">
+            <div className="w-full h-full relative border border-slate-50 rounded-[3.5rem] bg-slate-50/30 overflow-hidden">
                 <AnimatePresence mode="popLayout">
                   {activeSet.dishes.map(dish => (
                     <motion.div
-                      key={dish.id} 
-                      layout 
-                      initial={{ opacity: 0, scale: 0.8 }} 
+                      key={dish.id}
+                      layout
+                      initial={{ opacity: 0, scale: 0.8 }}
                       animate={{ opacity: 1, scale: 1 }}
                       exit={{ opacity: 0, scale: 0.8 }}
                       transition={springTransition}
-                      className="absolute cursor-pointer backdrop-blur-md hover:backdrop-blur-xl transition-all overflow-visible group/rect"
-                      style={{ 
-                        left: `${dish.x}%`, 
-                        top: `${dish.y}%`, 
-                        width: `${dish.width}%`, 
-                        height: `${dish.height}%`, 
-                        backgroundColor: `${dish.color}66`, // Translucency
-                        border: '1px solid rgba(0,0,0,0.1)',
-                        borderRadius: '2.5rem', // Curved corners
-                        zIndex: editingDishId === dish.id ? 100 : 10 
+                      className="absolute cursor-pointer select-none"
+                      style={{
+                        left: `${dish.x}%`,
+                        top: `${dish.y}%`,
+                        width: `${dish.width}%`,
+                        height: `${dish.height}%`,
+                        backgroundColor: `${dish.color}55`,
+                        border: `1.5px solid ${dish.color}bb`,
+                        borderRadius: '2.5rem',
+                        zIndex: editingDishId === dish.id ? 30 : 10,
                       }}
-                      onClick={() => setEditingDishId(editingDishId === dish.id ? null : dish.id)}
+                      onMouseDown={(e) => {
+                        e.stopPropagation();
+                        if (editingDishId === dish.id) {
+                          setEditingDishId(null);
+                          setDropdownRect(null);
+                        } else {
+                          const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                          const spaceBelow = window.innerHeight - rect.bottom;
+                          setDropdownRect({
+                            top: spaceBelow > 320 ? rect.bottom + 8 : rect.top - 320 - 8,
+                            left: Math.min(Math.max(rect.left + rect.width / 2 - 144, 8), window.innerWidth - 296),
+                            isBelow: spaceBelow > 320,
+                          });
+                          setEditingDishId(dish.id);
+                        }
+                      }}
                     >
                       <div className="w-full h-full flex flex-col items-center justify-center p-6 text-center">
-                         <motion.span layout="position" className="text-[13px] font-black text-slate-900 uppercase leading-tight mb-2 drop-shadow-sm">{dish.name}</motion.span>
-                         <motion.div layout="position" className="flex items-center gap-2 bg-white/40 px-3 py-1 rounded-full border border-white/20">
-                           <Sparkles size={10} className="text-orange-600" />
-                           <span className="text-[9px] font-black text-slate-800 uppercase opacity-80">{dish.demand}% Demand</span>
-                         </motion.div>
+                        <motion.span layout="position" className="text-[13px] font-black text-slate-900 uppercase leading-tight mb-2 drop-shadow-sm">{dish.name}</motion.span>
+                        <motion.div layout="position" className="flex items-center gap-2 bg-white/50 px-3 py-1 rounded-full border border-white/30">
+                          <Sparkles size={10} className="text-orange-600" />
+                          <span className="text-[9px] font-black text-slate-800 uppercase">{dish.demand}% Demand</span>
+                        </motion.div>
                       </div>
-
-                      <AnimatePresence>
-                        {editingDishId === dish.id && (
-                          <motion.div 
-                            initial={{ opacity: 0, scale: 0.9, y: 10 }} 
-                            animate={{ opacity: 1, scale: 1, y: 0 }} 
-                            exit={{ opacity: 0, scale: 0.9, y: 10 }}
-                            className={`absolute left-1/2 -translate-x-1/2 bg-slate-900 text-white rounded-[2.5rem] shadow-[0_30px_60px_rgba(0,0,0,0.5)] p-8 w-72 z-[200] border border-white/10 backdrop-blur-3xl 
-                              ${dish.y > 50 ? 'bottom-full mb-6' : 'top-full mt-6'}`} // Improved positioning to avoid container clipping
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            <div className="flex items-center justify-between mb-6">
-                              <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Market Swaps</p>
-                              <div className="w-2 h-2 rounded-full bg-orange-500 animate-pulse" />
-                            </div>
-                            <div className="space-y-4">
-                               {dish.alternatives?.map((alt, idx) => (
-                                 <button 
-                                   key={idx} 
-                                   onClick={() => handleDishChange(dish.id, alt)} 
-                                   className="w-full text-left p-5 rounded-3xl bg-white/5 border border-white/5 hover:bg-orange-600 hover:border-orange-500 transition-all group flex flex-col gap-1"
-                                 >
-                                    <p className="text-[12px] font-black uppercase tracking-tight text-white group-hover:text-white">{alt.name}</p>
-                                    <div className="flex justify-between items-center opacity-50 group-hover:opacity-100 transition-opacity">
-                                       <div className="flex items-center gap-1.5">
-                                          <Scale size={10} />
-                                          <span className="text-[9px] font-bold uppercase">{alt.demand}% Demand</span>
-                                       </div>
-                                       <span className="text-[10px] font-black uppercase text-orange-400 group-hover:text-white">${alt.cost}</span>
-                                    </div>
-                                 </button>
-                               ))}
-                               <button 
-                                 onClick={() => setEditingDishId(null)} 
-                                 className="w-full mt-4 py-4 text-[10px] font-black uppercase text-slate-400 hover:text-white hover:bg-white/5 rounded-2xl transition-all"
-                               >
-                                 Close
-                               </button>
-                            </div>
-                          </motion.div>
-                        )}
-                      </AnimatePresence>
                     </motion.div>
                   ))}
                 </AnimatePresence>
             </div>
           </div>
         </div>
+
+      {/* Fixed-position dropdown — completely outside card stacking context */}
+      <AnimatePresence>
+        {editingDishId && dropdownRect && (() => {
+          const dish = activeSet.dishes.find(d => d.id === editingDishId);
+          if (!dish) return null;
+          return (
+            <motion.div
+              ref={dropdownRef}
+              key={editingDishId}
+              initial={{ opacity: 0, scale: 0.93, y: dropdownRect.isBelow ? -6 : 6 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.93 }}
+              transition={{ type: 'spring', stiffness: 340, damping: 28 }}
+              className="fixed bg-slate-900 text-white rounded-[2.5rem] shadow-[0_30px_60px_rgba(0,0,0,0.5)] p-8 w-72 border border-white/10 backdrop-blur-3xl"
+              style={{ top: dropdownRect.top, left: dropdownRect.left, zIndex: 9999 }}
+              onMouseDown={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between mb-6">
+                <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Market Swaps</p>
+                <div className="w-2 h-2 rounded-full bg-orange-500 animate-pulse" />
+              </div>
+              <div className="space-y-3">
+                {dish.alternatives?.map((alt, idx) => (
+                  <button
+                    key={idx}
+                    onMouseDown={(e) => { e.stopPropagation(); handleDishChange(dish.id, alt); }}
+                    className="w-full text-left p-5 rounded-3xl bg-white/5 border border-white/5 hover:bg-orange-600 hover:border-orange-500 transition-all group flex flex-col gap-1"
+                  >
+                    <p className="text-[12px] font-black uppercase tracking-tight text-white">{alt.name}</p>
+                    <div className="flex justify-between items-center opacity-50 group-hover:opacity-100 transition-opacity">
+                      <div className="flex items-center gap-1.5">
+                        <Scale size={10} />
+                        <span className="text-[9px] font-bold uppercase">{alt.demand}% Demand</span>
+                      </div>
+                      <span className="text-[10px] font-black uppercase text-orange-400 group-hover:text-white">${alt.cost}</span>
+                    </div>
+                  </button>
+                ))}
+                <button
+                  onMouseDown={() => { setEditingDishId(null); setDropdownRect(null); }}
+                  className="w-full mt-2 py-4 text-[10px] font-black uppercase text-slate-400 hover:text-white hover:bg-white/5 rounded-2xl transition-all"
+                >
+                  Close
+                </button>
+              </div>
+            </motion.div>
+          );
+        })()}
+      </AnimatePresence>
 
         <div className="bg-white border border-slate-200 rounded-[4rem] shadow-2xl overflow-hidden animate-in fade-in slide-in-from-bottom-8 duration-1000">
            <table className="w-full text-left border-collapse">

@@ -40,7 +40,7 @@ interface PlaygroundProps {
   setIngredients: React.Dispatch<React.SetStateAction<Ingredient[]>>;
 }
 
-export const PlaygroundView: React.FC<PlaygroundProps> = ({ 
+export const CreateMenuView: React.FC<PlaygroundProps> = ({ 
   nodes, setNodes, edges, setEdges, stepGroups, setStepGroups, ingredients, setIngredients 
 }) => {
   const [selectedNodeIds, setSelectedNodeIds] = useState<string[]>([]);
