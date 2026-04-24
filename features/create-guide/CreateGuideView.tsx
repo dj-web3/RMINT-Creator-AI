@@ -1,7 +1,7 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Hand, Search, PlusCircle, Zap, Clock, ChefHat } from 'lucide-react';
+import { Hand, Search, PlusCircle, Zap, Clock, ChefHat, Timer } from 'lucide-react';
 import { Node, Edge, StepGroup } from '../../types';
 import { useCanvasTransform } from '../../hooks/useCanvasTransform';
 import { ActionIcon } from '../../utils/ui-helpers';
@@ -24,15 +24,14 @@ export const CreateGuideView: React.FC<GuideProps> = ({ nodes, edges, stepGroups
   const [isDragToolActive, setIsDragToolActive] = useState(false);
   const spCanvas = useCanvasTransform();
 
-  // Find the stepGroup that contains a given node
-  const getChefForNode = (nodeId: string): string | null => {
-    const group = stepGroups.find(g => g.nodeIds.includes(nodeId));
-    return group?.assignedChef || null;
-  };
+  // Auto-center canvas on first load so nodes are visible
+  useEffect(() => {
+    spCanvas.setOffset({ x: 60, y: 60 });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-  const getGroupForNode = (nodeId: string): StepGroup | null => {
-    return stepGroups.find(g => g.nodeIds.includes(nodeId)) || null;
-  };
+  const getGroupForNode = (nodeId: string): StepGroup | null =>
+    stepGroups.find(g => g.nodeIds.includes(nodeId)) || null;
 
   return (
     <div className={`flex-1 bg-[#fcfaf8] overflow-hidden relative canvas-grid ${isDragToolActive ? 'cursor-grab active:cursor-grabbing' : 'cursor-default'}`}>
@@ -73,54 +72,69 @@ export const CreateGuideView: React.FC<GuideProps> = ({ nodes, edges, stepGroups
           </svg>
           <div className="relative" style={{ minWidth: '10000px', minHeight: '10000px' }}>
             {nodes.map(n => {
-              const chef = getChefForNode(n.id);
               const group = getGroupForNode(n.id);
+              const chef = group?.assignedChef || null;
+              const duration = group?.durationMinutes || n.duration || null;
+              const startTime = group?.startTime || null;
               return (
                 <div
                   key={n.id}
-                  className="absolute w-[340px] bg-white border-2 border-white rounded-[3.5rem] p-8 shadow-2xl flex flex-col select-none"
-                  style={{ left: n.x, top: n.y, transition: '0.3s', zIndex: 10 }}
+                  className="absolute w-[340px] bg-white border-2 border-slate-100 rounded-[3.5rem] shadow-2xl flex flex-col select-none"
+                  style={{ left: n.x, top: n.y, zIndex: 10 }}
                 >
-                  <div className="flex items-center gap-5 mb-8">
-                    <div className="w-14 h-14 rounded-2xl bg-orange-50 text-orange-500 flex items-center justify-center shadow-inner shrink-0">
-                      {n.type === 'input' ? <PlusCircle size={24} /> : <Zap size={24} />}
+                  {/* Header */}
+                  <div className="flex items-center gap-4 p-6 pb-0">
+                    <div className="w-12 h-12 rounded-2xl bg-orange-50 text-orange-500 flex items-center justify-center shadow-inner shrink-0">
+                      {n.type === 'input' ? <PlusCircle size={20} /> : <Zap size={20} />}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-[12px] font-black text-slate-800 uppercase tracking-tight leading-none mb-1 truncate">{n.label}</p>
-                      <p className="text-[9px] font-bold text-slate-300 uppercase tracking-widest">{n.type === 'input' ? 'Pre-Operational' : 'Step Outcome'}</p>
+                      <p className="text-[12px] font-black text-slate-800 uppercase tracking-tight leading-none truncate">{n.label}</p>
+                      <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-1">{n.type === 'input' ? 'Ingredient' : 'Step'}</p>
                     </div>
                   </div>
+
+                  {/* Image */}
                   {n.image && (
-                    <div className="w-full h-48 rounded-[2.5rem] overflow-hidden mb-8 bg-slate-50 relative border border-slate-100">
+                    <div className="mx-6 mt-5 h-36 rounded-[2rem] overflow-hidden bg-slate-50 relative border border-slate-100">
                       <img src={n.image} className="w-full h-full object-cover" />
-                      {n.duration && (
-                        <div className="absolute top-4 right-4 px-3 py-1.5 bg-white/95 backdrop-blur rounded-full text-[10px] font-black text-slate-800 shadow flex items-center gap-2">
-                          <Clock size={12} className="text-orange-500" /> {n.duration}M
-                        </div>
-                      )}
                     </div>
                   )}
-                  <p className="text-[12px] text-slate-500 font-medium italic leading-relaxed mb-6 line-clamp-3">{n.content}</p>
-                  <div className="flex items-center justify-between border-t border-slate-50 pt-6 gap-3 flex-wrap">
-                    {chef ? (
-                      <div className="flex items-center gap-2 bg-slate-900 text-white px-4 py-2 rounded-full">
-                        <ChefHat size={12} className="text-orange-400" />
-                        <span className="text-[9px] font-black uppercase tracking-widest">{chef}</span>
+
+                  {/* Content */}
+                  {n.content && (
+                    <p className="mx-6 mt-4 text-[11px] text-slate-500 font-medium italic leading-relaxed line-clamp-2">{n.content}</p>
+                  )}
+
+                  {/* Synced data from Create Menu */}
+                  <div className="mx-6 mt-4 mb-6 space-y-2">
+                    {/* Chef pill — updates live from Create Menu */}
+                    <div className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl ${chef ? 'bg-slate-900' : 'bg-slate-100'}`}>
+                      <ChefHat size={12} className={chef ? 'text-orange-400' : 'text-slate-400'} />
+                      <span className={`text-[9px] font-black uppercase tracking-widest ${chef ? 'text-white' : 'text-slate-400'}`}>
+                        {chef || 'Unassigned'}
+                      </span>
+                      {group && (
+                        <span className="ml-auto text-[8px] font-black uppercase tracking-widest text-slate-500 truncate max-w-[100px]">{group.label}</span>
+                      )}
+                    </div>
+
+                    {/* Time info row */}
+                    <div className="flex gap-2">
+                      {startTime && (
+                        <div className="flex-1 flex items-center gap-2 bg-slate-50 border border-slate-100 rounded-2xl px-3 py-2">
+                          <Clock size={11} className="text-orange-400 shrink-0" />
+                          <span className="text-[9px] font-black text-slate-700 uppercase tracking-wide truncate">{startTime}</span>
+                        </div>
+                      )}
+                      {duration && (
+                        <div className="flex-1 flex items-center gap-2 bg-slate-50 border border-slate-100 rounded-2xl px-3 py-2">
+                          <Timer size={11} className="text-blue-400 shrink-0" />
+                          <span className="text-[9px] font-black text-slate-700 uppercase tracking-wide">{duration}m</span>
+                        </div>
+                      )}
+                      <div className="flex-1 flex items-center bg-slate-50 border border-slate-100 rounded-2xl px-3 py-2">
+                        <span className="text-[9px] font-black text-slate-700 uppercase tracking-wide truncate">{n.quantity}</span>
                       </div>
-                    ) : (
-                      <div className="flex items-center gap-2 bg-slate-100 px-4 py-2 rounded-full">
-                        <ChefHat size={12} className="text-slate-400" />
-                        <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">Unassigned</span>
-                      </div>
-                    )}
-                    {group && (
-                      <div className="flex items-center gap-2">
-                        <div className="w-2 h-2 rounded-full" style={{ backgroundColor: group.color }} />
-                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{group.label}</span>
-                      </div>
-                    )}
-                    <div className="bg-slate-50 px-4 py-2 rounded-full border border-slate-100">
-                      <span className="text-[10px] font-black text-slate-800 uppercase tracking-widest">{n.quantity}</span>
                     </div>
                   </div>
                 </div>
