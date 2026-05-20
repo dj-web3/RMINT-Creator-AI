@@ -38,7 +38,7 @@
     .chat-messages { flex:1; overflow:auto; padding:14px; display:flex; flex-direction:column; gap:12px; }
     .chat-message { border:1.5px solid var(--g300); padding:10px; max-width:90%; font-size:12px; border-radius:10px; line-height:1.5; }
     .chat-message.user { align-self:flex-end; background:var(--slate); color:white; border-color:var(--slate); }
-    .chat-input { border-top:1.5px solid var(--g200); padding:12px; }
+    .chat-input { border-top:1.5px solid var(--g200); padding:12px; max-height:50vh; overflow-y:auto; }
     .chat-input textarea { height:80px; resize:none; margin:0; border-radius:8px; border-color:var(--g300); }
 
     .main { flex:1; display:flex; flex-direction:column; overflow:hidden; background:var(--ivory); }
@@ -53,7 +53,13 @@
 
     .panel { border:1.5px solid var(--g300); padding:12px; background:var(--paper); border-radius:14px; }
     .panel h3 { font-family:var(--serif); font-weight:500; font-size:17px; margin-bottom:10px; letter-spacing:-.01em; }
-    .menu-layout { display:grid; grid-template-columns:320px 1fr; gap:16px; align-items:start; }
+    .menu-layout { display:grid; grid-template-columns:1fr; gap:16px; align-items:start; }
+    .canvas-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(300px,1fr)); gap:16px; }
+    .chat-ai-card { border:1.5px solid var(--g300); border-radius:12px; padding:12px; background:var(--g100); }
+    .chat-ai-card .card-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; }
+    .chat-ai-card .card-header strong { font-family:var(--serif); font-size:14px; }
+    .chat-ai-toggle { width:100%; padding:10px; border:1.5px dashed var(--clay); background:var(--paper); border-radius:10px; cursor:pointer; font-family:var(--mono); font-size:11px; letter-spacing:.04em; color:var(--clay); text-transform:uppercase; transition:background 150ms,border-color 150ms; }
+    .chat-ai-toggle:hover { background:var(--oat); border-color:var(--clay-d); }
     .guide-layout { display:grid; grid-template-columns:240px 1fr; gap:16px; }
     .plan-layout { display:grid; grid-template-columns:320px 1fr; gap:16px; }
 
@@ -138,7 +144,21 @@
   </div>
 
   <div class="chat-input">
-    <textarea placeholder="Ask RMINT AI..."></textarea>
+    <button class="chat-ai-toggle" onclick="toggleAICard()">+ Generate Workflow</button>
+    <div id="chat-ai-panel" style="display:none; margin-top:10px">
+      <div class="chat-ai-card">
+        <div class="card-header">
+          <strong>AI Workflow</strong>
+          <button class="btn" onclick="toggleAICard()" style="padding:4px 10px; font-size:11px">Close</button>
+        </div>
+        <label class="small">YouTube Recipe URL</label>
+        <input type="text" placeholder="Paste YouTube recipe/tutorial URL" />
+        <label class="small">Transcript / SOP / Kitchen Notes</label>
+        <textarea rows="3"></textarea>
+        <button class="btn primary" style="margin-top:4px; width:100%">Generate Workflow</button>
+      </div>
+    </div>
+    <textarea placeholder="Ask RMINT AI..." style="margin-top:10px"></textarea>
   </div>
 </div>
 
@@ -154,32 +174,7 @@
   </div>
   <div class="content">
     <div class="view active" id="menu-view">
-      <div class="panel" style="margin-bottom:16px">
-        <div style="font-size:20px; font-weight:bold; margin-bottom:12px">AI Workflow Generation Layer</div>
-        <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px">
-          <div>
-            <label class="small">YouTube Recipe URL</label>
-            <input type="text" placeholder="Paste YouTube recipe/tutorial URL" />
-          </div>
-          <div>
-            <label class="small">Prompt Command</label>
-            <input type="text" placeholder="Generate prep workflow for 50 servings with 3 chefs" />
-          </div>
-        </div>
-        <div>
-          <label class="small">Transcript / SOP / Kitchen Notes</label>
-          <textarea rows="4"></textarea>
-        </div>
-        <div style="display:flex; gap:12px">
-          <button class="btn primary">Generate Workflow</button>
-          <button class="btn">Modify Existing Flow</button>
-        </div>
-      </div>
       <div class="menu-layout">
-        <div class="panel">
-          <h3>Methodology Sidebar</h3>
-          <div id="methodology-editor"></div>
-        </div>
         <div class="panel">
           <h3>Recipe Workflow Canvas</h3>
           <div id="canvas-nodes"></div>
@@ -236,12 +231,13 @@
 const appState={selectedPlanStep:null,sharedDish:{ingredients:[{name:'Chicken',quantity:'800g'},{name:'Yogurt',quantity:'200g'},{name:'Rice',quantity:'1kg'},{name:'Spices',quantity:'120g'}],methodology:[{id:'1',title:'Chicken Marination',chefs:['SOUS','STATION'],ingredients:['Chicken','Yogurt'],duration:'45m',startTime:'07:00',process:'Marinating'},{id:'2',title:'Rice Preparation',chefs:['JUNIOR'],ingredients:['Rice','Spices'],duration:'30m',startTime:'08:00',process:'Boiling'},{id:'3',title:'Final Assembly',chefs:['TRAINEE'],ingredients:['Chicken','Rice'],duration:'20m',startTime:'09:00',process:'Combining'}]}};
 function deriveTasks(){const tasks=[];appState.sharedDish.methodology.forEach(step=>{step.chefs.forEach(chef=>{tasks.push({title:step.title,chef,startTime:step.startTime,duration:parseInt(step.duration,10),process:step.process,ingredients:step.ingredients});});});return tasks;}
 function renderIngredients(){const modalContainer=document.getElementById('ingredients-modal-list');const html=appState.sharedDish.ingredients.map(item=>`<div class="ingredient-item"><strong>${item.name}</strong><div class="small">${item.quantity}</div></div>`).join('');if(modalContainer){modalContainer.innerHTML=html;}}
-function renderCanvas(){document.getElementById('canvas-nodes').innerHTML=`<div class="flow-wrapper">${appState.sharedDish.methodology.map((step,index)=>`<div class="flow-step"><div class="node"><div class="node-title">${step.title}</div><div class="small">Process: ${step.process}</div><div class="small">Duration: ${step.duration}</div><div class="small">Start: ${step.startTime}</div><div class="small">Chefs: ${step.chefs.join(', ')}</div></div>${index!==appState.sharedDish.methodology.length-1?'<div class="arrow">→</div>':''}</div>`).join('')}</div>`;}
-function renderMethodology(){document.getElementById('methodology-editor').innerHTML=appState.sharedDish.methodology.map((step,index)=>`<div class="method-step"><div class="node-title">Method Step ${index+1}</div><label>Step Name</label><input value="${step.title}" onchange="updateStep(${index},'title',this.value)"/><label>Duration</label><input value="${step.duration}" onchange="updateStep(${index},'duration',this.value)"/><label>Start Time</label><input value="${step.startTime}" onchange="updateStep(${index},'startTime',this.value)"/><label>Ingredients</label><textarea rows="2" onchange="updateIngredients(${index},this.value)">${step.ingredients.join(', ')}</textarea><div class="chef-group">${['SOUS','STATION','JUNIOR','TRAINEE'].map(chef=>`<button type="button" class="chef-btn ${step.chefs.includes(chef)?'active':''}" onclick="toggleChef(${index},'${chef}')">${chef}</button>`).join('')}</div></div>`).join('');}
+function renderCanvas(){document.getElementById('canvas-nodes').innerHTML=`<div class="canvas-grid">${appState.sharedDish.methodology.map((step,index)=>`<div class="method-step"><div class="node-title">Step ${index+1}: ${step.title}</div><label>Step Name</label><input value="${step.title}" onchange="updateStep(${index},'title',this.value)"/><label>Process</label><input value="${step.process}" onchange="updateStep(${index},'process',this.value)"/><label>Duration</label><input value="${step.duration}" onchange="updateStep(${index},'duration',this.value)"/><label>Start Time</label><input value="${step.startTime}" onchange="updateStep(${index},'startTime',this.value)"/><label>Ingredients</label><textarea rows="2" onchange="updateIngredients(${index},this.value)">${step.ingredients.join(', ')}</textarea><div class="chef-group">${['SOUS','STATION','JUNIOR','TRAINEE'].map(chef=>`<button type="button" class="chef-btn ${step.chefs.includes(chef)?'active':''}" onclick="toggleChef(${index},'${chef}')">${chef}</button>`).join('')}</div></div>`).join('')}</div>`;}
+function renderMethodology(){}
 function renderGuide(){document.getElementById('guide-sidebar').innerHTML=appState.sharedDish.methodology.map((step,index)=>`<div class="guide-card"><strong>${index+1}. ${step.title}</strong><div class="small">${step.duration}</div></div>`).join('');document.getElementById('guide-cards').innerHTML=appState.sharedDish.methodology.map(step=>`<div class="guide-card"><div class="node-title">${step.title}</div><div class="small">Process: ${step.process}</div><div class="small">Start: ${step.startTime}</div><div class="small">Duration: ${step.duration}</div><div class="small">Chefs: ${step.chefs.join(', ')}</div><div class="small">Ingredients: ${step.ingredients.join(', ')}</div></div>`).join('');}
 function renderClockCards(){let html=appState.sharedDish.methodology.map((step,index)=>`<div class="clock-card" onclick="selectPlanStep(${index})"><div class="node-title">${step.title}</div><div class="small">${step.process}</div><div class="small">${step.startTime} • ${step.duration}</div><div class="small">${step.chefs.join(', ')}</div></div>`).join('');if(appState.selectedPlanStep!==null){const step=appState.sharedDish.methodology[appState.selectedPlanStep];html+=`<div class="task-detail-panel"><div class="node-title">${step.title}</div><div class="small">Process: ${step.process}</div><div class="small">Duration: ${step.duration}</div><div class="small">Start Time: ${step.startTime}</div><div class="small">Chefs: ${step.chefs.join(', ')}</div><div class="small">Ingredients: ${step.ingredients.join(', ')}</div></div>`;}document.getElementById('clock-cards').innerHTML=html;}
 function renderClockView(){document.getElementById('clock-step-list').innerHTML=appState.sharedDish.methodology.map(step=>`<div class="guide-card"><div class="node-title">${step.title}</div><div class="small">${step.startTime}</div><div class="small">${step.duration}</div></div>`).join('');document.getElementById('clock-face').innerHTML=appState.sharedDish.methodology.map((step,index)=>{const size=320-(index*28);const top=(420-size)/2;return `<div class="arc" style="width:${size}px;height:${size}px;top:${top}px;left:${top}px"></div>`;}).join('');}
 function renderTimeline(){const tasks=deriveTasks();const hours=['7AM','8AM','9AM','10AM','11AM','12PM','1PM','2PM','3PM','4PM','5PM','6PM','7PM'];const chefs=['SOUS','STATION','JUNIOR','TRAINEE'];document.getElementById('timeline').innerHTML=`<div class="timeline-header">${hours.map(hour=>`<div class="timeline-hour">${hour}</div>`).join('')}</div>${chefs.map(chef=>`<div><strong>${chef}</strong><div class="timeline-bars">${tasks.filter(task=>task.chef===chef).map(task=>{const parts=task.startTime.split(':');const left=((parseInt(parts[0])-7)*60)+parseInt(parts[1]);const width=task.duration*4;return `<div class="bar" style="left:${left}px;width:${width}px" onclick="showTask('${task.title}','${task.process}','${task.startTime}','${task.duration}','${task.chef}')"><strong>${task.title}</strong><br>${task.startTime} • ${task.duration}m</div>`;}).join('')}</div></div>`).join('')}`;}
+function toggleAICard(){const p=document.getElementById('chat-ai-panel');p.style.display=p.style.display==='none'?'block':'none';}
 function openIngredientsModal(){document.getElementById('ingredients-modal').style.display='flex';}
 function closeIngredientsModal(){document.getElementById('ingredients-modal').style.display='none';}
 function showTask(title,process,start,duration,chef){alert('STEP DETAILS\n\n'+'Step: '+title+'\n'+'Process: '+process+'\n'+'Chef: '+chef+'\n'+'Start: '+start+'\n'+'Duration: '+duration);}
