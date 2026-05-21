@@ -58,13 +58,28 @@
     .canvas-card-wrapper { display:flex; align-items:center; flex-shrink:0; }
     .canvas-card-wrapper .method-step { width:300px; margin-bottom:0; }
     .canvas-arrow { display:flex; align-items:center; padding:0 10px; color:var(--clay); font-size:28px; font-weight:bold; flex-shrink:0; }
-    .chat-ai-card { border:1.5px solid var(--g300); border-radius:12px; padding:12px; background:var(--g100); }
-    .chat-ai-card .card-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; }
-    .chat-ai-card .card-header strong { font-family:var(--serif); font-size:14px; }
-    .chat-ai-toggle { width:100%; padding:10px; border:1.5px dashed var(--clay); background:var(--paper); border-radius:10px; cursor:pointer; font-family:var(--mono); font-size:11px; letter-spacing:.04em; color:var(--clay); text-transform:uppercase; transition:background 150ms,border-color 150ms; }
-    .chat-ai-toggle:hover { background:var(--oat); border-color:var(--clay-d); }
-    .guide-layout { display:grid; grid-template-columns:240px 1fr; gap:16px; }
-    .plan-layout { display:grid; grid-template-columns:320px 1fr; gap:16px; }
+    .canvas-card-top { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:4px; }
+    .canvas-delete-btn { background:none; border:none; cursor:pointer; color:var(--g500); font-size:16px; padding:2px 4px; border-radius:6px; line-height:1; transition:color 150ms,background 150ms; }
+    .canvas-delete-btn:hover { color:#c0392b; background:rgba(192,57,43,.08); }
+    .canvas-add-step { display:flex; align-items:center; flex-shrink:0; padding-left:10px; }
+    .canvas-add-btn { padding:12px 16px; border:1.5px dashed var(--clay); border-radius:12px; background:var(--paper); color:var(--clay); font-family:var(--mono); font-size:11px; cursor:pointer; white-space:nowrap; transition:background 150ms; }
+    .canvas-add-btn:hover { background:var(--oat); }
+    .node-title-input { width:100%; border:none; background:none; font-family:var(--serif); font-size:15px; font-weight:500; color:var(--slate); padding:0; margin:0 0 8px; }
+    .node-title-input:focus { outline:none; border-bottom:1.5px solid var(--clay); }
+    .chat-pills { display:flex; gap:6px; margin-bottom:8px; }
+    .chat-pill { display:inline-flex; align-items:center; gap:5px; padding:5px 10px; border:1.5px solid var(--g300); border-radius:999px; font-family:var(--mono); font-size:11px; cursor:pointer; background:var(--paper); color:var(--g700); transition:border-color 150ms,background 150ms; }
+    .chat-pill:hover { border-color:var(--clay); color:var(--clay); }
+    .chat-pill .yt-icon { color:#FF0000; font-size:13px; }
+    .chat-yt-suggest { border:1.5px solid var(--clay); border-radius:12px; padding:12px; background:var(--g100); max-width:95%; }
+    .chat-yt-suggest .yt-title { font-family:var(--serif); font-size:13px; font-weight:500; margin-bottom:6px; color:var(--slate); }
+    .chat-yt-suggest .small { margin-bottom:10px; }
+    .guide-layout { display:grid; grid-template-columns:1fr; gap:16px; }
+    .plan-layout { display:flex; flex-direction:column; gap:16px; }
+    .accordion-header { display:flex; justify-content:space-between; align-items:center; cursor:pointer; user-select:none; margin-bottom:0; }
+    .accordion-header h3 { margin-bottom:0; }
+    .accordion-chevron { font-size:12px; color:var(--g500); transition:transform 200ms; font-family:var(--mono); }
+    .accordion-body { margin-top:12px; }
+    .accordion-body.collapsed { display:none; }
 
     .method-step,.guide-card,.clock-card,.ingredient-item { border:1.5px solid var(--g300); padding:10px; margin-bottom:10px; border-radius:12px; background:var(--paper); transition:transform 150ms,box-shadow 150ms,border-color 150ms; }
     .method-step:hover,.guide-card:hover,.clock-card:hover { transform:translateY(-2px); box-shadow:0 6px 20px rgba(20,20,19,.08); border-color:var(--g500); }
@@ -132,7 +147,7 @@
 <div class="chat-panel">
   <div class="chat-header">RMINT AI</div>
 
-  <div class="chat-messages">
+  <div class="chat-messages" id="chat-messages-list">
     <div class="chat-message">
       Workflow generated for Chicken Biryani.
     </div>
@@ -147,21 +162,10 @@
   </div>
 
   <div class="chat-input">
-    <button class="chat-ai-toggle" onclick="toggleAICard()">+ Generate Workflow</button>
-    <div id="chat-ai-panel" style="display:none; margin-top:10px">
-      <div class="chat-ai-card">
-        <div class="card-header">
-          <strong>AI Workflow</strong>
-          <button class="btn" onclick="toggleAICard()" style="padding:4px 10px; font-size:11px">Close</button>
-        </div>
-        <label class="small">YouTube Recipe URL</label>
-        <input type="text" placeholder="Paste YouTube recipe/tutorial URL" />
-        <label class="small">Transcript / SOP / Kitchen Notes</label>
-        <textarea rows="3"></textarea>
-        <button class="btn primary" style="margin-top:4px; width:100%">Generate Workflow</button>
-      </div>
+    <div class="chat-pills">
+      <button class="chat-pill" onclick="sendYTSuggestion()"><span class="yt-icon">▶</span> YouTube</button>
     </div>
-    <textarea placeholder="Ask RMINT AI..." style="margin-top:10px"></textarea>
+    <textarea id="chat-textarea" placeholder="Ask RMINT AI..." style="height:70px; resize:none; margin:0;"></textarea>
   </div>
 </div>
 
@@ -198,13 +202,12 @@
 
     <div class="view" id="guide-view">
       <div class="guide-layout">
-        <div class="panel"><h3>Video Sidebar</h3><div id="guide-sidebar"></div></div>
         <div class="panel"><h3>Guide Cards</h3><div id="guide-cards"></div></div>
       </div>
     </div>
 
     <div class="view" id="plan-view">
-      <div style="display:flex; justify-content:space-between; margin-bottom:16px">
+      <div style="display:flex; justify-content:space-between; margin-bottom:16px; align-items:center;">
         <strong>Create Plan</strong>
         <div style="display:flex; gap:10px">
           <button class="btn primary" id="timeline-toggle-btn">Timeline View</button>
@@ -212,7 +215,15 @@
         </div>
       </div>
       <div class="plan-layout">
-        <div class="panel"><h3>Step Cards</h3><div id="clock-cards"></div></div>
+        <div class="panel">
+          <div class="accordion-header" onclick="toggleAccordion()">
+            <h3>Step Cards</h3>
+            <span class="accordion-chevron" id="accordion-chevron">▼</span>
+          </div>
+          <div class="accordion-body collapsed" id="accordion-body">
+            <div id="clock-cards"></div>
+          </div>
+        </div>
         <div class="panel">
           <div id="timeline-view-section"><h3 style="margin-bottom:12px">Timeline View</h3><div id="timeline"></div></div>
           <div id="clock-view-section" style="display:none">
@@ -234,13 +245,17 @@
 const appState={selectedPlanStep:null,sharedDish:{ingredients:[{name:'Chicken',quantity:'800g'},{name:'Yogurt',quantity:'200g'},{name:'Rice',quantity:'1kg'},{name:'Spices',quantity:'120g'}],methodology:[{id:'1',title:'Chicken Marination',chefs:['SOUS','STATION'],ingredients:['Chicken','Yogurt'],duration:'45m',startTime:'07:00',process:'Marinating'},{id:'2',title:'Rice Preparation',chefs:['JUNIOR'],ingredients:['Rice','Spices'],duration:'30m',startTime:'08:00',process:'Boiling'},{id:'3',title:'Final Assembly',chefs:['TRAINEE'],ingredients:['Chicken','Rice'],duration:'20m',startTime:'09:00',process:'Combining'}]}};
 function deriveTasks(){const tasks=[];appState.sharedDish.methodology.forEach(step=>{step.chefs.forEach(chef=>{tasks.push({title:step.title,chef,startTime:step.startTime,duration:parseInt(step.duration,10),process:step.process,ingredients:step.ingredients});});});return tasks;}
 function renderIngredients(){const modalContainer=document.getElementById('ingredients-modal-list');const html=appState.sharedDish.ingredients.map(item=>`<div class="ingredient-item"><strong>${item.name}</strong><div class="small">${item.quantity}</div></div>`).join('');if(modalContainer){modalContainer.innerHTML=html;}}
-function renderCanvas(){document.getElementById('canvas-nodes').innerHTML=`<div class="canvas-grid">${appState.sharedDish.methodology.map((step,index)=>`<div class="canvas-card-wrapper"><div class="method-step"><div class="node-title">Step ${index+1}: ${step.title}</div><label>Step Name</label><input value="${step.title}" onchange="updateStep(${index},'title',this.value)"/><label>Process</label><input value="${step.process}" onchange="updateStep(${index},'process',this.value)"/><label>Duration</label><input value="${step.duration}" onchange="updateStep(${index},'duration',this.value)"/><label>Start Time</label><input value="${step.startTime}" onchange="updateStep(${index},'startTime',this.value)"/><label>Ingredients</label><textarea rows="2" onchange="updateIngredients(${index},this.value)">${step.ingredients.join(', ')}</textarea><div class="chef-group">${['SOUS','STATION','JUNIOR','TRAINEE'].map(chef=>`<button type="button" class="chef-btn ${step.chefs.includes(chef)?'active':''}" onclick="toggleChef(${index},'${chef}')">${chef}</button>`).join('')}</div></div>${index<appState.sharedDish.methodology.length-1?'<div class="canvas-arrow">→</div>':''}</div>`).join('')}</div>`;}
+function renderCanvas(){document.getElementById('canvas-nodes').innerHTML=`<div class="canvas-grid">${appState.sharedDish.methodology.map((step,index)=>`<div class="canvas-card-wrapper"><div class="method-step"><div class="canvas-card-top"><input class="node-title-input" value="Step ${index+1}: ${step.title}" onchange="updateStep(${index},'title',this.value.replace(/^Step \\d+: /,''))"/><button class="canvas-delete-btn" onclick="deleteStep(${index})" title="Delete step">✕</button></div><label>Process</label><input value="${step.process}" onchange="updateStep(${index},'process',this.value)"/><label>Duration</label><input value="${step.duration}" onchange="updateStep(${index},'duration',this.value)"/><label>Start Time</label><input value="${step.startTime}" onchange="updateStep(${index},'startTime',this.value)"/><label>Ingredients</label><textarea rows="2" onchange="updateIngredients(${index},this.value)">${step.ingredients.join(', ')}</textarea><div class="chef-group">${['SOUS','STATION','JUNIOR','TRAINEE'].map(chef=>`<button type="button" class="chef-btn ${step.chefs.includes(chef)?'active':''}" onclick="toggleChef(${index},'${chef}')">${chef}</button>`).join('')}</div></div>${index<appState.sharedDish.methodology.length-1?'<div class="canvas-arrow">→</div>':''}</div>`).join('')}<div class="canvas-add-step"><button class="canvas-add-btn" onclick="addStep()">+ Add Step</button></div></div>`;}
 function renderMethodology(){}
-function renderGuide(){document.getElementById('guide-sidebar').innerHTML=appState.sharedDish.methodology.map((step,index)=>`<div class="guide-card"><strong>${index+1}. ${step.title}</strong><div class="small">${step.duration}</div></div>`).join('');document.getElementById('guide-cards').innerHTML=appState.sharedDish.methodology.map(step=>`<div class="guide-card"><div class="node-title">${step.title}</div><div class="small">Process: ${step.process}</div><div class="small">Start: ${step.startTime}</div><div class="small">Duration: ${step.duration}</div><div class="small">Chefs: ${step.chefs.join(', ')}</div><div class="small">Ingredients: ${step.ingredients.join(', ')}</div></div>`).join('');}
+function renderGuide(){document.getElementById('guide-cards').innerHTML=appState.sharedDish.methodology.map(step=>`<div class="guide-card"><div class="node-title">${step.title}</div><div class="small">Process: ${step.process}</div><div class="small">Start: ${step.startTime}</div><div class="small">Duration: ${step.duration}</div><div class="small">Chefs: ${step.chefs.join(', ')}</div><div class="small">Ingredients: ${step.ingredients.join(', ')}</div></div>`).join('');}
 function renderClockCards(){let html=appState.sharedDish.methodology.map((step,index)=>`<div class="clock-card" onclick="selectPlanStep(${index})"><div class="node-title">${step.title}</div><div class="small">${step.process}</div><div class="small">${step.startTime} • ${step.duration}</div><div class="small">${step.chefs.join(', ')}</div></div>`).join('');if(appState.selectedPlanStep!==null){const step=appState.sharedDish.methodology[appState.selectedPlanStep];html+=`<div class="task-detail-panel"><div class="node-title">${step.title}</div><div class="small">Process: ${step.process}</div><div class="small">Duration: ${step.duration}</div><div class="small">Start Time: ${step.startTime}</div><div class="small">Chefs: ${step.chefs.join(', ')}</div><div class="small">Ingredients: ${step.ingredients.join(', ')}</div></div>`;}document.getElementById('clock-cards').innerHTML=html;}
 function renderClockView(){document.getElementById('clock-step-list').innerHTML=appState.sharedDish.methodology.map(step=>`<div class="guide-card"><div class="node-title">${step.title}</div><div class="small">${step.startTime}</div><div class="small">${step.duration}</div></div>`).join('');document.getElementById('clock-face').innerHTML=appState.sharedDish.methodology.map((step,index)=>{const size=320-(index*28);const top=(420-size)/2;return `<div class="arc" style="width:${size}px;height:${size}px;top:${top}px;left:${top}px"></div>`;}).join('');}
 function renderTimeline(){const tasks=deriveTasks();const hours=['7AM','8AM','9AM','10AM','11AM','12PM','1PM','2PM','3PM','4PM','5PM','6PM','7PM'];const chefs=['SOUS','STATION','JUNIOR','TRAINEE'];document.getElementById('timeline').innerHTML=`<div class="timeline-header">${hours.map(hour=>`<div class="timeline-hour">${hour}</div>`).join('')}</div>${chefs.map(chef=>`<div><strong>${chef}</strong><div class="timeline-bars">${tasks.filter(task=>task.chef===chef).map(task=>{const parts=task.startTime.split(':');const left=((parseInt(parts[0])-7)*60)+parseInt(parts[1]);const width=task.duration*4;return `<div class="bar" style="left:${left}px;width:${width}px" onclick="showTask('${task.title}','${task.process}','${task.startTime}','${task.duration}','${task.chef}')"><strong>${task.title}</strong><br>${task.startTime} • ${task.duration}m</div>`;}).join('')}</div></div>`).join('')}`;}
-function toggleAICard(){const p=document.getElementById('chat-ai-panel');p.style.display=p.style.display==='none'?'block':'none';}
+function deleteStep(index){appState.sharedDish.methodology.splice(index,1);sync();}
+function addStep(){appState.sharedDish.methodology.push({id:String(Date.now()),title:'New Step',chefs:[],ingredients:[],duration:'15m',startTime:'10:00',process:'Prep'});sync();}
+function sendYTSuggestion(){const msgs=document.getElementById('chat-messages-list');const userMsg=document.createElement('div');userMsg.className='chat-message user';userMsg.textContent='https://youtube.com/watch?v=biryani-recipe';msgs.appendChild(userMsg);const aiCard=document.createElement('div');aiCard.className='chat-yt-suggest';aiCard.innerHTML='<div class="yt-title">▶ Chicken Biryani by Chef Ranveer Brar</div><div class="small">Generate a workflow from this video?</div><button class="btn primary" style="width:100%;margin-top:4px" onclick="generateFromYT(this)">Generate Workflow</button>';msgs.appendChild(aiCard);msgs.scrollTop=msgs.scrollHeight;}
+function generateFromYT(btn){btn.parentElement.innerHTML='<div class="small" style="color:var(--olive);font-weight:600">✓ Workflow generated and synced to canvas.</div>';}
+function toggleAccordion(){const body=document.getElementById('accordion-body');const chevron=document.getElementById('accordion-chevron');const collapsed=body.classList.toggle('collapsed');chevron.style.transform=collapsed?'':'rotate(180deg)';}
 function openIngredientsModal(){document.getElementById('ingredients-modal').style.display='flex';}
 function closeIngredientsModal(){document.getElementById('ingredients-modal').style.display='none';}
 function showTask(title,process,start,duration,chef){alert('STEP DETAILS\n\n'+'Step: '+title+'\n'+'Process: '+process+'\n'+'Chef: '+chef+'\n'+'Start: '+start+'\n'+'Duration: '+duration);}
