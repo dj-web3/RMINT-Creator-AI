@@ -38,8 +38,8 @@
     .chat-messages { flex:1; overflow:auto; padding:14px; display:flex; flex-direction:column; gap:12px; }
     .chat-message { border:1.5px solid var(--g300); padding:10px; max-width:90%; font-size:12px; border-radius:10px; line-height:1.5; }
     .chat-message.user { align-self:flex-end; background:var(--slate); color:white; border-color:var(--slate); }
-    .chat-input { border-top:1.5px solid var(--g200); padding:12px; max-height:50vh; overflow-y:auto; }
-    .chat-input textarea { height:80px; resize:none; margin:0; border-radius:8px; border-color:var(--g300); }
+    .chat-input { border-top:1.5px solid var(--g200); padding:12px; }
+    .chat-input textarea { height:70px; resize:none; margin:0; border-radius:8px; border-color:var(--g300); }
 
     .main { flex:1; display:flex; flex-direction:column; overflow:hidden; background:var(--ivory); }
     .top-nav { display:flex; gap:10px; padding:12px 16px; border-bottom:1.5px solid var(--g200); }
@@ -61,18 +61,29 @@
     .canvas-card-top { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:4px; }
     .canvas-delete-btn { background:none; border:none; cursor:pointer; color:var(--g500); font-size:16px; padding:2px 4px; border-radius:6px; line-height:1; transition:color 150ms,background 150ms; }
     .canvas-delete-btn:hover { color:#c0392b; background:rgba(192,57,43,.08); }
+    .canvas-panel-header { display:flex; justify-content:space-between; align-items:center; padding:12px 12px 8px; position:sticky; top:0; background:var(--paper); z-index:2; border-radius:14px 14px 0 0; border-bottom:1.5px solid var(--g200); margin-bottom:0; }
+    .canvas-panel-header h3 { margin-bottom:0; }
+    .canvas-panel-body { padding:8px 12px 12px; overflow-x:auto; }
     .canvas-add-step { display:flex; align-items:center; flex-shrink:0; padding-left:10px; }
-    .canvas-add-btn { padding:12px 16px; border:1.5px dashed var(--clay); border-radius:12px; background:var(--paper); color:var(--clay); font-family:var(--mono); font-size:11px; cursor:pointer; white-space:nowrap; transition:background 150ms; }
+    .canvas-add-btn { padding:6px 12px; border:1.5px dashed var(--clay); border-radius:999px; background:var(--paper); color:var(--clay); font-family:var(--mono); font-size:11px; cursor:pointer; white-space:nowrap; transition:background 150ms; letter-spacing:.02em; }
     .canvas-add-btn:hover { background:var(--oat); }
     .node-title-input { width:100%; border:none; background:none; font-family:var(--serif); font-size:15px; font-weight:500; color:var(--slate); padding:0; margin:0 0 8px; }
     .node-title-input:focus { outline:none; border-bottom:1.5px solid var(--clay); }
     .chat-pills { display:flex; gap:6px; margin-bottom:8px; }
-    .chat-pill { display:inline-flex; align-items:center; gap:5px; padding:5px 10px; border:1.5px solid var(--g300); border-radius:999px; font-family:var(--mono); font-size:11px; cursor:pointer; background:var(--paper); color:var(--g700); transition:border-color 150ms,background 150ms; }
+    .chat-pill { display:inline-flex; align-items:center; gap:5px; padding:5px 10px; border:1.5px solid var(--g300); border-radius:999px; font-family:var(--mono); font-size:11px; cursor:pointer; background:var(--paper); color:var(--g700); transition:border-color 150ms,background 150ms,color 150ms; }
     .chat-pill:hover { border-color:var(--clay); color:var(--clay); }
+    .chat-pill.active { border-color:var(--clay); background:var(--clay); color:white; }
+    .chat-pill.active .yt-icon { color:white; }
     .chat-pill .yt-icon { color:#FF0000; font-size:13px; }
+    .chat-send-row { display:flex; gap:8px; align-items:flex-end; margin-top:8px; }
+    .chat-send-row textarea { flex:1; height:70px; resize:none; margin:0; }
+    .chat-send-btn { padding:8px 14px; flex-shrink:0; align-self:flex-end; }
     .chat-yt-suggest { border:1.5px solid var(--clay); border-radius:12px; padding:12px; background:var(--g100); max-width:95%; }
     .chat-yt-suggest .yt-title { font-family:var(--serif); font-size:13px; font-weight:500; margin-bottom:6px; color:var(--slate); }
     .chat-yt-suggest .small { margin-bottom:10px; }
+    .chat-yt-suggest.disabled { opacity:.5; pointer-events:none; }
+    .guide-card-thumb { background:var(--g100); border-radius:8px; height:110px; display:flex; align-items:center; justify-content:center; margin-bottom:10px; border:1.5px solid var(--g200); }
+    .guide-thumb-icon { font-size:32px; color:var(--g300); line-height:1; }
     .guide-layout { display:grid; grid-template-columns:1fr; gap:16px; }
     .plan-layout { display:flex; flex-direction:column; gap:16px; }
     .accordion-header { display:flex; justify-content:space-between; align-items:center; cursor:pointer; user-select:none; margin-bottom:0; }
@@ -163,9 +174,12 @@
 
   <div class="chat-input">
     <div class="chat-pills">
-      <button class="chat-pill" onclick="sendYTSuggestion()"><span class="yt-icon">▶</span> YouTube</button>
+      <button class="chat-pill" id="yt-pill" onclick="toggleYTPill()"><span class="yt-icon">▶</span> YouTube</button>
     </div>
-    <textarea id="chat-textarea" placeholder="Ask RMINT AI..." style="height:70px; resize:none; margin:0;"></textarea>
+    <div class="chat-send-row">
+      <textarea id="chat-textarea" placeholder="Ask RMINT AI..."></textarea>
+      <button class="btn primary chat-send-btn" onclick="sendChatMessage()">↑</button>
+    </div>
   </div>
 </div>
 
@@ -182,9 +196,14 @@
   <div class="content">
     <div class="view active" id="menu-view">
       <div class="menu-layout">
-        <div class="panel">
-          <h3>Recipe Workflow Canvas</h3>
-          <div id="canvas-nodes"></div>
+        <div class="panel" style="padding:0; overflow:hidden;">
+          <div class="canvas-panel-header">
+            <h3>Recipe Workflow Canvas</h3>
+            <button class="canvas-add-btn" onclick="addStep()">+ Add Step</button>
+          </div>
+          <div class="canvas-panel-body">
+            <div id="canvas-nodes"></div>
+          </div>
         </div>
       </div>
     </div>
@@ -245,16 +264,17 @@
 const appState={selectedPlanStep:null,sharedDish:{ingredients:[{name:'Chicken',quantity:'800g'},{name:'Yogurt',quantity:'200g'},{name:'Rice',quantity:'1kg'},{name:'Spices',quantity:'120g'}],methodology:[{id:'1',title:'Chicken Marination',chefs:['SOUS','STATION'],ingredients:['Chicken','Yogurt'],duration:'45m',startTime:'07:00',process:'Marinating'},{id:'2',title:'Rice Preparation',chefs:['JUNIOR'],ingredients:['Rice','Spices'],duration:'30m',startTime:'08:00',process:'Boiling'},{id:'3',title:'Final Assembly',chefs:['TRAINEE'],ingredients:['Chicken','Rice'],duration:'20m',startTime:'09:00',process:'Combining'}]}};
 function deriveTasks(){const tasks=[];appState.sharedDish.methodology.forEach(step=>{step.chefs.forEach(chef=>{tasks.push({title:step.title,chef,startTime:step.startTime,duration:parseInt(step.duration,10),process:step.process,ingredients:step.ingredients});});});return tasks;}
 function renderIngredients(){const modalContainer=document.getElementById('ingredients-modal-list');const html=appState.sharedDish.ingredients.map(item=>`<div class="ingredient-item"><strong>${item.name}</strong><div class="small">${item.quantity}</div></div>`).join('');if(modalContainer){modalContainer.innerHTML=html;}}
-function renderCanvas(){document.getElementById('canvas-nodes').innerHTML=`<div class="canvas-grid">${appState.sharedDish.methodology.map((step,index)=>`<div class="canvas-card-wrapper"><div class="method-step"><div class="canvas-card-top"><input class="node-title-input" value="Step ${index+1}: ${step.title}" onchange="updateStep(${index},'title',this.value.replace(/^Step \\d+: /,''))"/><button class="canvas-delete-btn" onclick="deleteStep(${index})" title="Delete step">✕</button></div><label>Process</label><input value="${step.process}" onchange="updateStep(${index},'process',this.value)"/><label>Duration</label><input value="${step.duration}" onchange="updateStep(${index},'duration',this.value)"/><label>Start Time</label><input value="${step.startTime}" onchange="updateStep(${index},'startTime',this.value)"/><label>Ingredients</label><textarea rows="2" onchange="updateIngredients(${index},this.value)">${step.ingredients.join(', ')}</textarea><div class="chef-group">${['SOUS','STATION','JUNIOR','TRAINEE'].map(chef=>`<button type="button" class="chef-btn ${step.chefs.includes(chef)?'active':''}" onclick="toggleChef(${index},'${chef}')">${chef}</button>`).join('')}</div></div>${index<appState.sharedDish.methodology.length-1?'<div class="canvas-arrow">→</div>':''}</div>`).join('')}<div class="canvas-add-step"><button class="canvas-add-btn" onclick="addStep()">+ Add Step</button></div></div>`;}
+function renderCanvas(){document.getElementById('canvas-nodes').innerHTML=`<div class="canvas-grid">${appState.sharedDish.methodology.map((step,index)=>`<div class="canvas-card-wrapper"><div class="method-step"><div class="canvas-card-top"><input class="node-title-input" value="Step ${index+1}: ${step.title}" onchange="updateStep(${index},'title',this.value.replace(/^Step \\d+: /,''))"/><button class="canvas-delete-btn" onclick="deleteStep(${index})" title="Delete step">✕</button></div><label>Process</label><input value="${step.process}" onchange="updateStep(${index},'process',this.value)"/><label>Duration</label><input value="${step.duration}" onchange="updateStep(${index},'duration',this.value)"/><label>Start Time</label><input value="${step.startTime}" onchange="updateStep(${index},'startTime',this.value)"/><label>Ingredients</label><textarea rows="2" onchange="updateIngredients(${index},this.value)">${step.ingredients.join(', ')}</textarea><div class="chef-group">${['SOUS','STATION','JUNIOR','TRAINEE'].map(chef=>`<button type="button" class="chef-btn ${step.chefs.includes(chef)?'active':''}" onclick="toggleChef(${index},'${chef}')">${chef}</button>`).join('')}</div></div>${index<appState.sharedDish.methodology.length-1?'<div class="canvas-arrow">→</div>':''}</div>`).join('')}</div>`;}
 function renderMethodology(){}
-function renderGuide(){document.getElementById('guide-cards').innerHTML=appState.sharedDish.methodology.map(step=>`<div class="guide-card"><div class="node-title">${step.title}</div><div class="small">Process: ${step.process}</div><div class="small">Start: ${step.startTime}</div><div class="small">Duration: ${step.duration}</div><div class="small">Chefs: ${step.chefs.join(', ')}</div><div class="small">Ingredients: ${step.ingredients.join(', ')}</div></div>`).join('');}
-function renderClockCards(){let html=appState.sharedDish.methodology.map((step,index)=>`<div class="clock-card" onclick="selectPlanStep(${index})"><div class="node-title">${step.title}</div><div class="small">${step.process}</div><div class="small">${step.startTime} • ${step.duration}</div><div class="small">${step.chefs.join(', ')}</div></div>`).join('');if(appState.selectedPlanStep!==null){const step=appState.sharedDish.methodology[appState.selectedPlanStep];html+=`<div class="task-detail-panel"><div class="node-title">${step.title}</div><div class="small">Process: ${step.process}</div><div class="small">Duration: ${step.duration}</div><div class="small">Start Time: ${step.startTime}</div><div class="small">Chefs: ${step.chefs.join(', ')}</div><div class="small">Ingredients: ${step.ingredients.join(', ')}</div></div>`;}document.getElementById('clock-cards').innerHTML=html;}
+function renderGuide(){document.getElementById('guide-cards').innerHTML=appState.sharedDish.methodology.map(step=>`<div class="guide-card"><div class="guide-card-thumb"><div class="guide-thumb-icon">▶</div></div><div class="node-title">${step.title}</div><div class="small">Process: ${step.process}</div><div class="small">Start: ${step.startTime}</div><div class="small">Duration: ${step.duration}</div><div class="small">Chefs: ${step.chefs.join(', ')}</div><div class="small">Ingredients: ${step.ingredients.join(', ')}</div></div>`).join('');}
+function renderClockCards(){document.getElementById('clock-cards').innerHTML=appState.sharedDish.methodology.map((step,index)=>`<div class="clock-card"><div class="node-title">${step.title}</div><div class="small">${step.process}</div><div class="small">${step.startTime} • ${step.duration}</div><div class="small">Chefs: ${step.chefs.join(', ')}</div><div class="small">Ingredients: ${step.ingredients.join(', ')}</div></div>`).join('');}
 function renderClockView(){document.getElementById('clock-step-list').innerHTML=appState.sharedDish.methodology.map(step=>`<div class="guide-card"><div class="node-title">${step.title}</div><div class="small">${step.startTime}</div><div class="small">${step.duration}</div></div>`).join('');document.getElementById('clock-face').innerHTML=appState.sharedDish.methodology.map((step,index)=>{const size=320-(index*28);const top=(420-size)/2;return `<div class="arc" style="width:${size}px;height:${size}px;top:${top}px;left:${top}px"></div>`;}).join('');}
 function renderTimeline(){const tasks=deriveTasks();const hours=['7AM','8AM','9AM','10AM','11AM','12PM','1PM','2PM','3PM','4PM','5PM','6PM','7PM'];const chefs=['SOUS','STATION','JUNIOR','TRAINEE'];document.getElementById('timeline').innerHTML=`<div class="timeline-header">${hours.map(hour=>`<div class="timeline-hour">${hour}</div>`).join('')}</div>${chefs.map(chef=>`<div><strong>${chef}</strong><div class="timeline-bars">${tasks.filter(task=>task.chef===chef).map(task=>{const parts=task.startTime.split(':');const left=((parseInt(parts[0])-7)*60)+parseInt(parts[1]);const width=task.duration*4;return `<div class="bar" style="left:${left}px;width:${width}px" onclick="showTask('${task.title}','${task.process}','${task.startTime}','${task.duration}','${task.chef}')"><strong>${task.title}</strong><br>${task.startTime} • ${task.duration}m</div>`;}).join('')}</div></div>`).join('')}`;}
 function deleteStep(index){appState.sharedDish.methodology.splice(index,1);sync();}
 function addStep(){appState.sharedDish.methodology.push({id:String(Date.now()),title:'New Step',chefs:[],ingredients:[],duration:'15m',startTime:'10:00',process:'Prep'});sync();}
-function sendYTSuggestion(){const msgs=document.getElementById('chat-messages-list');const userMsg=document.createElement('div');userMsg.className='chat-message user';userMsg.textContent='https://youtube.com/watch?v=biryani-recipe';msgs.appendChild(userMsg);const aiCard=document.createElement('div');aiCard.className='chat-yt-suggest';aiCard.innerHTML='<div class="yt-title">▶ Chicken Biryani by Chef Ranveer Brar</div><div class="small">Generate a workflow from this video?</div><button class="btn primary" style="width:100%;margin-top:4px" onclick="generateFromYT(this)">Generate Workflow</button>';msgs.appendChild(aiCard);msgs.scrollTop=msgs.scrollHeight;}
-function generateFromYT(btn){btn.parentElement.innerHTML='<div class="small" style="color:var(--olive);font-weight:600">✓ Workflow generated and synced to canvas.</div>';}
+function toggleYTPill(){document.getElementById('yt-pill').classList.toggle('active');}
+function sendChatMessage(){const ta=document.getElementById('chat-textarea');const text=ta.value.trim();if(!text)return;const msgs=document.getElementById('chat-messages-list');const userMsg=document.createElement('div');userMsg.className='chat-message user';userMsg.textContent=text;msgs.appendChild(userMsg);ta.value='';const isYT=/youtube\.com|youtu\.be/i.test(text);if(isYT){const aiCard=document.createElement('div');aiCard.className='chat-yt-suggest';aiCard.innerHTML='<div class="yt-title">▶ Detected: YouTube Recipe Link</div><div class="small">Generate a workflow from this video?</div><button class="btn primary" style="width:100%;margin-top:8px" onclick="generateFromYT(this)">Generate Workflow</button>';msgs.appendChild(aiCard);}else{const aiMsg=document.createElement('div');aiMsg.className='chat-message';aiMsg.textContent='Got it! I\'ll update the workflow accordingly.';msgs.appendChild(aiMsg);}msgs.scrollTop=msgs.scrollHeight;}
+function generateFromYT(btn){const card=btn.closest('.chat-yt-suggest');card.classList.add('disabled');const msgs=document.getElementById('chat-messages-list');const successMsg=document.createElement('div');successMsg.className='chat-message';successMsg.innerHTML='✓ Workflow generated successfully and synced to the canvas.';msgs.appendChild(successMsg);msgs.scrollTop=msgs.scrollHeight;}
 function toggleAccordion(){const body=document.getElementById('accordion-body');const chevron=document.getElementById('accordion-chevron');const collapsed=body.classList.toggle('collapsed');chevron.style.transform=collapsed?'':'rotate(180deg)';}
 function openIngredientsModal(){document.getElementById('ingredients-modal').style.display='flex';}
 function closeIngredientsModal(){document.getElementById('ingredients-modal').style.display='none';}
