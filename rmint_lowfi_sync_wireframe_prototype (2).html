@@ -69,6 +69,20 @@
     .edge-arrow.right:hover { transform:translateY(-50%) scale(1.18); }
     .edge-arrow.bottom { bottom:-13px; left:50%; transform:translateX(-50%); }
     .edge-arrow.bottom:hover { transform:translateX(-50%) scale(1.18); }
+    .edge-connect-btn { position:absolute; left:-13px; top:50%; transform:translateY(-50%); width:26px; height:26px; border-radius:50%; background:var(--olive); color:white; border:none; cursor:pointer; display:none; align-items:center; justify-content:center; font-size:14px; z-index:10; box-shadow:0 2px 8px rgba(120,140,93,.4); transition:transform 150ms; }
+    .method-step:hover .edge-connect-btn { display:flex; }
+    .edge-connect-btn:hover { transform:translateY(-50%) scale(1.18); }
+    .connect-mode-banner { background:var(--slate); color:white; padding:8px 14px; border-radius:10px; font-family:var(--mono); font-size:11px; margin-bottom:12px; display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+    .connect-mode-banner strong { color:var(--oat); }
+    .connect-cancel-btn { background:none; border:1.5px solid rgba(255,255,255,.3); color:white; border-radius:999px; padding:3px 10px; cursor:pointer; font-size:11px; font-family:var(--mono); margin-left:auto; transition:border-color 150ms; }
+    .connect-cancel-btn:hover { border-color:white; }
+    .connect-target-btn { width:100%; margin-top:10px; padding:7px; background:rgba(217,119,87,.07); border:1.5px dashed var(--clay); border-radius:8px; color:var(--clay); font-family:var(--mono); font-size:11px; cursor:pointer; transition:background 150ms; text-align:center; letter-spacing:.03em; }
+    .connect-target-btn:hover { background:rgba(217,119,87,.18); }
+    .connecting-source { border-color:var(--olive) !important; box-shadow:0 0 0 3px rgba(120,140,93,.2); }
+    .connection-chips { display:flex; flex-wrap:wrap; gap:4px; margin-top:8px; padding-top:8px; border-top:1px solid var(--g200); }
+    .connection-chip { display:inline-flex; align-items:center; gap:4px; padding:3px 6px 3px 8px; background:var(--oat); border-radius:999px; font-size:10px; font-family:var(--mono); color:var(--g700); }
+    .chip-del { background:none; border:none; cursor:pointer; color:var(--g500); font-size:13px; padding:0 1px; line-height:1; }
+    .chip-del:hover { color:#c0392b; }
     .canvas-card-top { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:4px; }
     .canvas-delete-btn { background:none; border:none; cursor:pointer; color:var(--g500); font-size:16px; padding:2px 4px; border-radius:6px; line-height:1; transition:color 150ms,background 150ms; }
     .canvas-delete-btn:hover { color:#c0392b; background:rgba(192,57,43,.08); }
@@ -272,38 +286,53 @@
   </div>
 </div>
 <script>
-const appState={selectedPlanStep:null,sharedDish:{ingredients:[{name:'Chicken',quantity:'800g'},{name:'Yogurt',quantity:'200g'},{name:'Rice',quantity:'1kg'},{name:'Spices',quantity:'120g'}],methodology:[{id:'1',title:'Chicken Marination',chefs:['SOUS','STATION'],ingredients:['Chicken','Yogurt'],duration:'45m',startTime:'07:00',process:'Marinating',branches:[]},{id:'2',title:'Rice Preparation',chefs:['JUNIOR'],ingredients:['Rice','Spices'],duration:'30m',startTime:'08:00',process:'Boiling',branches:[]},{id:'3',title:'Final Assembly',chefs:['TRAINEE'],ingredients:['Chicken','Rice'],duration:'20m',startTime:'09:00',process:'Combining',branches:[]}]}};
+const appState={selectedPlanStep:null,connectingFrom:null,connections:[],sharedDish:{ingredients:[{name:'Chicken',quantity:'800g'},{name:'Yogurt',quantity:'200g'},{name:'Rice',quantity:'1kg'},{name:'Spices',quantity:'120g'}],methodology:[{id:'1',title:'Chicken Marination',chefs:['SOUS','STATION'],ingredients:['Chicken','Yogurt'],duration:'45m',startTime:'07:00',process:'Marinating',branches:[]},{id:'2',title:'Rice Preparation',chefs:['JUNIOR'],ingredients:['Rice','Spices'],duration:'30m',startTime:'08:00',process:'Boiling',branches:[]},{id:'3',title:'Final Assembly',chefs:['TRAINEE'],ingredients:['Chicken','Rice'],duration:'20m',startTime:'09:00',process:'Combining',branches:[]}]}};
 function deriveTasks(){const tasks=[];appState.sharedDish.methodology.forEach(step=>{step.chefs.forEach(chef=>{tasks.push({title:step.title,chef,startTime:step.startTime,duration:parseInt(step.duration,10),process:step.process,ingredients:step.ingredients});});});return tasks;}
 function renderIngredients(){const modalContainer=document.getElementById('ingredients-modal-list');const html=appState.sharedDish.ingredients.map(item=>`<div class="ingredient-item"><strong>${item.name}</strong><div class="small">${item.quantity}</div></div>`).join('');if(modalContainer){modalContainer.innerHTML=html;}}
+function getTitleById(id){for(const s of appState.sharedDish.methodology){if(s.id===id)return s.title;if(s.branches)for(const b of s.branches)if(b.id===id)return b.title;}return id;}
 function renderCanvas(){
   const steps=appState.sharedDish.methodology;
+  const cf=appState.connectingFrom;
+  function chips(id){const out=appState.connections.filter(c=>c.from===id);if(!out.length)return '';return `<div class="connection-chips">${out.map(c=>`<span class="connection-chip">→ ${getTitleById(c.to)} <button class="chip-del" onclick="removeConnection('${c.from}','${c.to}')">×</button></span>`).join('')}</div>`;}
+  function cardBtns(id,addRight,addBottom){
+    if(cf===id)return '';
+    if(cf)return `<button class="connect-target-btn" onclick="finishConnection('${id}')">↙ Link here</button>`;
+    return `<button class="edge-connect-btn" onclick="startConnection('${id}')" title="Connect to any card">⤷</button>${addRight?`<button class="edge-arrow right" onclick="addStepAfter_id('${id}')" title="Add step after">→</button>`:''}${addBottom?`<button class="edge-arrow bottom" onclick="addBranch_id('${id}')" title="Add branch">↓</button>`:''}`;
+  }
+  function chefs(list,fn){return ['SOUS','STATION','JUNIOR','TRAINEE'].map(c=>`<button type="button" class="chef-btn ${list.includes(c)?'active':''}" onclick="${fn}('${c}')">${c}</button>`).join('');}
+  function fullCard(id,title,iClass,iStyle,headHtml,fields){
+    const isSrc=cf===id;
+    return `<div class="method-step${isSrc?' connecting-source':''} ${iClass}" style="${iStyle}" data-step-id="${id}">
+      <div class="canvas-card-top">${headHtml}<button class="canvas-delete-btn" onclick="(${iClass.includes('branch')?'deleteBranch_id':'deleteStep_id'})('${id}')">✕</button></div>
+      ${fields}
+      ${chips(id)}
+      ${cardBtns(id, !iClass.includes('branch'), !iClass.includes('branch'))}
+    </div>`;}
+  const banner=cf?`<div class="connect-mode-banner">Connecting from: <strong>${getTitleById(cf)}</strong> — click any card to link<button class="connect-cancel-btn" onclick="cancelConnection()">Cancel</button></div>`:'';
   const cols=steps.map((step,i)=>{
     if(!step.branches)step.branches=[];
     const canBranch=step.branches.length<3;
-    const mainCard=`<div class="method-step" style="width:300px;margin-bottom:0">
-      <div class="canvas-card-top"><input class="node-title-input" value="Step ${i+1}: ${step.title}" onchange="updateStep(${i},'title',this.value.replace(/^Step \\d+: /,''))"/><button class="canvas-delete-btn" onclick="deleteStep(${i})" title="Delete step">✕</button></div>
-      <label>Process</label><input value="${step.process}" onchange="updateStep(${i},'process',this.value)"/>
+    const headHtml=`<input class="node-title-input" value="Step ${i+1}: ${step.title}" onchange="updateStep(${i},'title',this.value.replace(/^Step \\d+: /,''))"/>`;
+    const fields=`<label>Process</label><input value="${step.process}" onchange="updateStep(${i},'process',this.value)"/>
       <label>Duration</label><input value="${step.duration}" onchange="updateStep(${i},'duration',this.value)"/>
       <label>Start Time</label><input value="${step.startTime}" onchange="updateStep(${i},'startTime',this.value)"/>
       <label>Ingredients</label><textarea rows="2" onchange="updateIngredients(${i},this.value)">${step.ingredients.join(', ')}</textarea>
-      <div class="chef-group">${['SOUS','STATION','JUNIOR','TRAINEE'].map(chef=>`<button type="button" class="chef-btn ${step.chefs.includes(chef)?'active':''}" onclick="toggleChef(${i},'${chef}')">${chef}</button>`).join('')}</div>
-      <button class="edge-arrow right" onclick="addStepAfter(${i})" title="Add step after">→</button>
-      ${canBranch?`<button class="edge-arrow bottom" onclick="addBranch(${i})" title="Add branch">↓</button>`:''}
-    </div>`;
-    const branchCards=step.branches.map((b,bi)=>`
-      <div class="branch-connector"></div>
-      <div class="method-step branch-card" style="width:280px;margin-bottom:0">
-        <div class="canvas-card-top">
-          <input class="node-title-input" value="${b.title}" onchange="updateBranch(${i},${bi},'title',this.value)" style="font-size:13px"/>
-          <button class="canvas-delete-btn" onclick="deleteBranch(${i},${bi})">✕</button>
-        </div>
-        <label>Process</label><input value="${b.process}" onchange="updateBranch(${i},${bi},'process',this.value)"/>
+      <div class="chef-group">${chefs(step.chefs,`(c)=>toggleChef(${i},c)`)}</div>`;
+    const mainCard=fullCard(step.id,'Step '+(i+1)+': '+step.title,'',`width:300px;margin-bottom:0`,headHtml,fields+(canBranch?'':''));
+    const branchCards=step.branches.map((b,bi)=>{
+      if(!b.chefs)b.chefs=[];if(!b.ingredients)b.ingredients=[];if(!b.startTime)b.startTime='10:00';
+      const bHead=`<input class="node-title-input" value="${b.title}" onchange="updateBranch(${i},${bi},'title',this.value)" style="font-size:13px"/>`;
+      const bFields=`<label>Process</label><input value="${b.process}" onchange="updateBranch(${i},${bi},'process',this.value)"/>
         <label>Duration</label><input value="${b.duration}" onchange="updateBranch(${i},${bi},'duration',this.value)"/>
-      </div>`).join('');
+        <label>Start Time</label><input value="${b.startTime}" onchange="updateBranch(${i},${bi},'startTime',this.value)"/>
+        <label>Ingredients</label><textarea rows="2" onchange="updateBranchIngredients(${i},${bi},this.value)">${b.ingredients.join(', ')}</textarea>
+        <div class="chef-group">${chefs(b.chefs,`(c)=>toggleBranchChef(${i},${bi},c)`)}</div>`;
+      return `<div class="branch-connector"></div>${fullCard(b.id,b.title,'branch-card','width:280px;margin-bottom:0',bHead,bFields)}`;
+    }).join('');
     const rightArrow=i<steps.length-1?'<div class="canvas-arrow">→</div>':'';
     return `<div class="canvas-card-wrapper"><div class="canvas-col">${mainCard}${branchCards}</div>${rightArrow}</div>`;
   }).join('');
-  document.getElementById('canvas-nodes').innerHTML=`<div class="canvas-grid">${cols}</div>`;
+  document.getElementById('canvas-nodes').innerHTML=`${banner}<div class="canvas-grid">${cols}</div>`;
 }
 function renderMethodology(){}
 function renderGuide(){document.getElementById('guide-cards').innerHTML=appState.sharedDish.methodology.map(step=>`<div class="guide-card"><div class="guide-card-thumb"><div class="guide-thumb-icon">▶</div></div><div class="node-title">${step.title}</div><div class="small">Process: ${step.process}</div><div class="small">Start: ${step.startTime}</div><div class="small">Duration: ${step.duration}</div><div class="small">Chefs: ${step.chefs.join(', ')}</div><div class="small">Ingredients: ${step.ingredients.join(', ')}</div></div>`).join('');}
@@ -311,11 +340,22 @@ function renderClockCards(){document.getElementById('clock-cards').innerHTML=app
 function renderClockView(){document.getElementById('clock-step-list').innerHTML=appState.sharedDish.methodology.map(step=>`<div class="guide-card"><div class="node-title">${step.title}</div><div class="small">${step.startTime}</div><div class="small">${step.duration}</div></div>`).join('');document.getElementById('clock-face').innerHTML=appState.sharedDish.methodology.map((step,index)=>{const size=320-(index*28);const top=(420-size)/2;return `<div class="arc" style="width:${size}px;height:${size}px;top:${top}px;left:${top}px"></div>`;}).join('');}
 function renderTimeline(){const tasks=deriveTasks();const hours=['7AM','8AM','9AM','10AM','11AM','12PM','1PM','2PM','3PM','4PM','5PM','6PM','7PM'];const chefs=['SOUS','STATION','JUNIOR','TRAINEE'];document.getElementById('timeline').innerHTML=`<div class="timeline-header">${hours.map(hour=>`<div class="timeline-hour">${hour}</div>`).join('')}</div>${chefs.map(chef=>`<div><strong>${chef}</strong><div class="timeline-bars">${tasks.filter(task=>task.chef===chef).map(task=>{const parts=task.startTime.split(':');const left=((parseInt(parts[0])-7)*60)+parseInt(parts[1]);const width=task.duration*4;return `<div class="bar" style="left:${left}px;width:${width}px" onclick="showTask('${task.title}','${task.process}','${task.startTime}','${task.duration}','${task.chef}')"><strong>${task.title}</strong><br>${task.startTime} • ${task.duration}m</div>`;}).join('')}</div></div>`).join('')}`;}
 function deleteStep(index){appState.sharedDish.methodology.splice(index,1);sync();}
+function deleteStep_id(id){const i=appState.sharedDish.methodology.findIndex(s=>s.id===id);if(i>-1){appState.sharedDish.methodology.splice(i,1);sync();}}
 function addStep(){appState.sharedDish.methodology.push({id:String(Date.now()),title:'New Step',chefs:[],ingredients:[],duration:'15m',startTime:'10:00',process:'Prep',branches:[]});sync();}
 function addStepAfter(index){appState.sharedDish.methodology.splice(index+1,0,{id:String(Date.now()),title:'New Step',chefs:[],ingredients:[],duration:'15m',startTime:'10:00',process:'Prep',branches:[]});sync();}
-function addBranch(index){const step=appState.sharedDish.methodology[index];if(!step.branches)step.branches=[];if(step.branches.length>=3)return;step.branches.push({id:String(Date.now()),title:'Branch Step',process:'Prep',duration:'15m'});sync();}
-function deleteBranch(si,bi){appState.sharedDish.methodology[si].branches.splice(bi,1);sync();}
+function addStepAfter_id(id){const i=appState.sharedDish.methodology.findIndex(s=>s.id===id);if(i>-1)addStepAfter(i);}
+function addBranch(index){const step=appState.sharedDish.methodology[index];if(!step.branches)step.branches=[];if(step.branches.length>=3)return;step.branches.push({id:String(Date.now()),title:'Branch Step',process:'Prep',duration:'15m',startTime:'10:00',ingredients:[],chefs:[]});sync();}
+function addBranch_id(id){const i=appState.sharedDish.methodology.findIndex(s=>s.id===id);if(i>-1)addBranch(i);}
+function deleteBranch(si,bi){appState.sharedDish.methodology[si].branches.splice(bi,1);appState.connections=appState.connections.filter(c=>c.from!==appState.sharedDish.methodology[si]?.branches[bi]?.id&&c.to!==appState.sharedDish.methodology[si]?.branches[bi]?.id);sync();}
+function deleteBranch_id(id){for(let i=0;i<appState.sharedDish.methodology.length;i++){const bi=appState.sharedDish.methodology[i].branches?.findIndex(b=>b.id===id)??-1;if(bi>-1){appState.sharedDish.methodology[i].branches.splice(bi,1);appState.connections=appState.connections.filter(c=>c.from!==id&&c.to!==id);sync();return;}}}
 function updateBranch(si,bi,field,value){appState.sharedDish.methodology[si].branches[bi][field]=value;}
+function updateBranchIngredients(si,bi,val){appState.sharedDish.methodology[si].branches[bi].ingredients=val.split(',').map(s=>s.trim()).filter(Boolean);}
+function toggleBranchChef(si,bi,chef){const b=appState.sharedDish.methodology[si].branches[bi];if(!b.chefs)b.chefs=[];if(b.chefs.includes(chef))b.chefs=b.chefs.filter(c=>c!==chef);else b.chefs.push(chef);renderCanvas();}
+function startConnection(fromId){appState.connectingFrom=fromId;renderCanvas();}
+function finishConnection(toId){if(appState.connectingFrom&&appState.connectingFrom!==toId){if(!appState.connections.some(c=>c.from===appState.connectingFrom&&c.to===toId))appState.connections.push({from:appState.connectingFrom,to:toId});}appState.connectingFrom=null;renderCanvas();}
+function cancelConnection(){appState.connectingFrom=null;renderCanvas();}
+function removeConnection(from,to){appState.connections=appState.connections.filter(c=>!(c.from===from&&c.to===to));renderCanvas();}
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&appState.connectingFrom)cancelConnection();});
 function toggleYTPill(){document.getElementById('yt-pill').classList.toggle('active');}
 function sendChatMessage(){const ta=document.getElementById('chat-textarea');const text=ta.value.trim();if(!text)return;const msgs=document.getElementById('chat-messages-list');const userMsg=document.createElement('div');userMsg.className='chat-message user';userMsg.textContent=text;msgs.appendChild(userMsg);ta.value='';const isYT=/youtube\.com|youtu\.be/i.test(text);if(isYT){const aiCard=document.createElement('div');aiCard.className='chat-yt-suggest';aiCard.innerHTML='<div class="yt-title">▶ Detected: YouTube Recipe Link</div><div class="small">Generate a workflow from this video?</div><button class="btn primary" style="width:100%;margin-top:8px" onclick="generateFromYT(this)">Generate Workflow</button>';msgs.appendChild(aiCard);}else{const aiMsg=document.createElement('div');aiMsg.className='chat-message';aiMsg.textContent='Got it! I\'ll update the workflow accordingly.';msgs.appendChild(aiMsg);}msgs.scrollTop=msgs.scrollHeight;}
 function generateFromYT(btn){const card=btn.closest('.chat-yt-suggest');card.classList.add('disabled');const msgs=document.getElementById('chat-messages-list');const successMsg=document.createElement('div');successMsg.className='chat-message';successMsg.innerHTML='✓ Workflow generated successfully and synced to the canvas.';msgs.appendChild(successMsg);msgs.scrollTop=msgs.scrollHeight;}
