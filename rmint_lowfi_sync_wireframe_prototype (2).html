@@ -55,7 +55,9 @@
     .panel h3 { font-family:var(--serif); font-weight:500; font-size:17px; margin-bottom:10px; letter-spacing:-.01em; }
     .menu-layout { display:grid; grid-template-columns:1fr; gap:16px; align-items:start; }
     .canvas-grid { display:flex; align-items:flex-start; gap:0; overflow-x:auto; padding:8px 0 16px; }
-    .canvas-card-wrapper { display:flex; align-items:flex-start; flex-shrink:0; }
+    .canvas-card-wrapper { display:flex; align-items:flex-start; flex-shrink:0; cursor:grab; }
+    .canvas-card-wrapper.dragging { opacity:0.35; }
+    .canvas-card-wrapper.drag-over .canvas-col { outline:2px dashed var(--clay); border-radius:14px; background:rgba(217,119,87,.06); }
     .canvas-col { display:flex; flex-direction:column; align-items:center; }
     .canvas-col > .method-step { width:300px; margin-bottom:0; }
     .canvas-arrow { display:flex; align-items:center; padding:0 10px; color:var(--clay); font-size:28px; font-weight:bold; flex-shrink:0; margin-top:90px; }
@@ -69,18 +71,7 @@
     .edge-arrow.right:hover { transform:translateY(-50%) scale(1.18); }
     .edge-arrow.bottom { bottom:-13px; left:50%; transform:translateX(-50%); }
     .edge-arrow.bottom:hover { transform:translateX(-50%) scale(1.18); }
-    .edge-connect-btn { position:absolute; left:-13px; top:50%; transform:translateY(-50%); width:26px; height:26px; border-radius:50%; background:var(--olive); color:white; border:none; cursor:pointer; display:none; align-items:center; justify-content:center; font-size:14px; z-index:10; box-shadow:0 2px 8px rgba(120,140,93,.4); transition:transform 150ms; }
-    .method-step:hover .edge-connect-btn { display:flex; }
-    .edge-connect-btn:hover { transform:translateY(-50%) scale(1.18); }
-    .connect-select-row { margin-top:10px; display:flex; gap:6px; align-items:center; border-top:1px solid var(--g200); padding-top:10px; }
-    .connect-select { flex:1; border:1.5px solid var(--g300); border-radius:8px; padding:6px 8px; font-family:var(--mono); font-size:11px; color:var(--slate); background:var(--paper); cursor:pointer; }
-    .connect-select:focus { outline:none; border-color:var(--clay); }
-    .connect-close-btn { background:none; border:none; cursor:pointer; color:var(--g500); font-size:16px; padding:2px 4px; line-height:1; }
-    .connect-close-btn:hover { color:var(--slate); }
-    .connection-chips { display:flex; flex-wrap:wrap; gap:4px; margin-top:8px; padding-top:8px; border-top:1px solid var(--g200); }
-    .connection-chip { display:inline-flex; align-items:center; gap:4px; padding:3px 6px 3px 8px; background:var(--oat); border-radius:999px; font-size:10px; font-family:var(--mono); color:var(--g700); }
-    .chip-del { background:none; border:none; cursor:pointer; color:var(--g500); font-size:13px; padding:0 1px; line-height:1; }
-    .chip-del:hover { color:#c0392b; }
+    .drag-hint { font-family:var(--mono); font-size:10px; color:var(--g500); padding:4px 0 0; text-align:center; letter-spacing:.03em; }
     .canvas-card-top { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:4px; }
     .canvas-delete-btn { background:none; border:none; cursor:pointer; color:var(--g500); font-size:16px; padding:2px 4px; border-radius:6px; line-height:1; transition:color 150ms,background 150ms; }
     .canvas-delete-btn:hover { color:#c0392b; background:rgba(192,57,43,.08); }
@@ -288,19 +279,15 @@ const appState={selectedPlanStep:null,openDropdown:null,connections:[],sharedDis
 function deriveTasks(){const tasks=[];appState.sharedDish.methodology.forEach(step=>{step.chefs.forEach(chef=>{tasks.push({title:step.title,chef,startTime:step.startTime,duration:parseInt(step.duration,10),process:step.process,ingredients:step.ingredients});});});return tasks;}
 function renderIngredients(){const modalContainer=document.getElementById('ingredients-modal-list');const html=appState.sharedDish.ingredients.map(item=>`<div class="ingredient-item"><strong>${item.name}</strong><div class="small">${item.quantity}</div></div>`).join('');if(modalContainer){modalContainer.innerHTML=html;}}
 function getTitleById(id){for(const s of appState.sharedDish.methodology){if(s.id===id)return s.title;if(s.branches)for(const b of s.branches)if(b.id===id)return b.title;}return id;}
-function getAllCards(){const cards=[];appState.sharedDish.methodology.forEach((s,i)=>{cards.push({id:s.id,label:`Step ${i+1}: ${s.title}`});(s.branches||[]).forEach(b=>cards.push({id:b.id,label:`↳ ${b.title}`}));});return cards;}
 function renderCanvas(){
   const steps=appState.sharedDish.methodology;
-  const od=appState.openDropdown;
-  function chips(id){const out=appState.connections.filter(c=>c.from===id);if(!out.length)return '';return `<div class="connection-chips">${out.map(c=>`<span class="connection-chip">→ ${getTitleById(c.to)} <button class="chip-del" onclick="removeConnection('${c.from}','${c.to}')">×</button></span>`).join('')}</div>`;}
-  function connectRow(id){if(od===id){const opts=getAllCards().filter(c=>c.id!==id).map(c=>`<option value="${c.id}">${c.label}</option>`).join('');return `<div class="connect-select-row"><select class="connect-select" onchange="finishConnection('${id}',this.value)"><option value="">Connect to…</option>${opts}</select><button class="connect-close-btn" onclick="toggleConnectDropdown('${id}')">✕</button></div>`;}return `<button class="edge-connect-btn" onclick="toggleConnectDropdown('${id}')" title="Connect to any card">⤷</button>`;}
   function chefs(list,fn){return ['SOUS','STATION','JUNIOR','TRAINEE'].map(c=>`<button type="button" class="chef-btn ${list.includes(c)?'active':''}" onclick="${fn}('${c}')">${c}</button>`).join('');}
-  function makeCard(id,headHtml,fields,extraBtns){return `<div class="method-step" style="width:300px;margin-bottom:0" data-step-id="${id}"><div class="canvas-card-top">${headHtml}<button class="canvas-delete-btn" onclick="deleteAny_id('${id}')">✕</button></div>${fields}${chips(id)}${connectRow(id)}${extraBtns||''}</div>`;}
+  function makeCard(id,headHtml,fields,extraBtns){return `<div class="method-step" style="width:300px;margin-bottom:0" data-step-id="${id}"><div class="canvas-card-top">${headHtml}<button class="canvas-delete-btn" onclick="deleteAny_id('${id}')">✕</button></div>${fields}${extraBtns||''}</div>`;}
   const cols=steps.map((step,i)=>{
     if(!step.branches)step.branches=[];
     const headHtml=`<input class="node-title-input" value="Step ${i+1}: ${step.title}" onchange="updateStep(${i},'title',this.value.replace(/^Step \\d+: /,''))"/>`;
     const fields=`<label>Process</label><input value="${step.process}" onchange="updateStep(${i},'process',this.value)"/><label>Duration</label><input value="${step.duration}" onchange="updateStep(${i},'duration',this.value)"/><label>Start Time</label><input value="${step.startTime}" onchange="updateStep(${i},'startTime',this.value)"/><label>Ingredients</label><textarea rows="2" onchange="updateIngredients(${i},this.value)">${step.ingredients.join(', ')}</textarea><div class="chef-group">${chefs(step.chefs,`(c)=>toggleChef(${i},c)`)}</div>`;
-    const extraBtns=`${i<steps.length-1?`<button class="edge-arrow right" onclick="addStepAfter_id('${step.id}')" title="Add step after">→</button>`:''}${step.branches.length<3?`<button class="edge-arrow bottom" onclick="addBranch_id('${step.id}')" title="Add branch">↓</button>`:''}`;
+    const extraBtns=`${step.branches.length<3?`<button class="edge-arrow bottom" onclick="addBranch_id('${step.id}')" title="Add branch">↓</button>`:''}`;
     const mainCard=makeCard(step.id,headHtml,fields,extraBtns);
     const branchCards=step.branches.map((b,bi)=>{
       if(!b.chefs)b.chefs=[];if(!b.ingredients)b.ingredients=[];if(!b.startTime)b.startTime='10:00';
@@ -309,10 +296,9 @@ function renderCanvas(){
       return `<div class="branch-connector"></div>${makeCard(b.id,bHead,bFields,'')}`;
     }).join('');
     const rightArrow=i<steps.length-1?'<div class="canvas-arrow">→</div>':'';
-    return `<div class="canvas-card-wrapper"><div class="canvas-col">${mainCard}${branchCards}</div>${rightArrow}</div>`;
+    return `<div class="canvas-card-wrapper" draggable="true" ondragstart="dndStart(event,${i})" ondragend="dndEnd(event)" ondragover="dndOver(event,${i})" ondragleave="dndLeave(event)" ondrop="dndDrop(event,${i})"><div class="canvas-col">${mainCard}${branchCards}</div>${rightArrow}</div>`;
   }).join('');
   document.getElementById('canvas-nodes').innerHTML=`<div class="canvas-grid">${cols}</div>`;
-  setTimeout(drawConnectionLines,0);
 }
 function renderMethodology(){}
 function renderGuide(){document.getElementById('guide-cards').innerHTML=appState.sharedDish.methodology.map(step=>`<div class="guide-card"><div class="guide-card-thumb"><div class="guide-thumb-icon">▶</div></div><div class="node-title">${step.title}</div><div class="small">Process: ${step.process}</div><div class="small">Start: ${step.startTime}</div><div class="small">Duration: ${step.duration}</div><div class="small">Chefs: ${step.chefs.join(', ')}</div><div class="small">Ingredients: ${step.ingredients.join(', ')}</div></div>`).join('');}
@@ -332,11 +318,12 @@ function updateBranch(si,bi,field,value){appState.sharedDish.methodology[si].bra
 function updateBranchIngredients(si,bi,val){appState.sharedDish.methodology[si].branches[bi].ingredients=val.split(',').map(s=>s.trim()).filter(Boolean);}
 function toggleBranchChef(si,bi,chef){const b=appState.sharedDish.methodology[si].branches[bi];if(!b.chefs)b.chefs=[];if(b.chefs.includes(chef))b.chefs=b.chefs.filter(c=>c!==chef);else b.chefs.push(chef);renderCanvas();}
 function deleteAny_id(id){const si=appState.sharedDish.methodology.findIndex(s=>s.id===id);if(si>-1){deleteStep_id(id);}else{deleteBranch_id(id);}}
-function toggleConnectDropdown(id){appState.openDropdown=appState.openDropdown===id?null:id;renderCanvas();}
-function finishConnection(fromId,toId){if(fromId&&toId&&fromId!==toId&&!appState.connections.some(c=>c.from===fromId&&c.to===toId))appState.connections.push({from:fromId,to:toId});appState.openDropdown=null;renderCanvas();setTimeout(drawConnectionLines,0);}
-function removeConnection(from,to){appState.connections=appState.connections.filter(c=>!(c.from===from&&c.to===to));renderCanvas();setTimeout(drawConnectionLines,0);}
-function drawConnectionLines(){const body=document.querySelector('.canvas-panel-body');if(!body)return;const old=document.getElementById('conn-svg');if(old)old.remove();if(!appState.connections.length)return;const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');svg.id='conn-svg';svg.style.cssText=`position:absolute;top:0;left:0;width:${body.scrollWidth}px;height:${body.scrollHeight}px;pointer-events:none;z-index:20;overflow:visible;`;svg.innerHTML=`<defs><marker id="ah" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#D97757"/></marker></defs>`;const bodyRect=body.getBoundingClientRect();appState.connections.forEach(conn=>{const fromEl=body.querySelector(`[data-step-id="${conn.from}"]`);const toEl=body.querySelector(`[data-step-id="${conn.to}"]`);if(!fromEl||!toEl)return;const fR=fromEl.getBoundingClientRect(),tR=toEl.getBoundingClientRect();const sl=body.scrollLeft,st=body.scrollTop;const x1=fR.right-bodyRect.left+sl,y1=fR.top+fR.height/2-bodyRect.top+st;const x2=tR.left-bodyRect.left+sl,y2=tR.top+tR.height/2-bodyRect.top+st;const dx=Math.max(Math.abs(x2-x1)*.5,60);const p=document.createElementNS('http://www.w3.org/2000/svg','path');p.setAttribute('d',`M${x1},${y1} C${x1+dx},${y1} ${x2-dx},${y2} ${x2-2},${y2}`);p.setAttribute('stroke','#D97757');p.setAttribute('stroke-width','2');p.setAttribute('fill','none');p.setAttribute('marker-end','url(#ah)');svg.appendChild(p);});body.appendChild(svg);}
-document.addEventListener('keydown',e=>{if(e.key==='Escape'&&appState.openDropdown){appState.openDropdown=null;renderCanvas();}});
+let _dragIdx=null;
+function dndStart(e,i){const t=e.target;if(t.tagName==='INPUT'||t.tagName==='TEXTAREA'||t.tagName==='BUTTON'||t.tagName==='SELECT'){e.preventDefault();return;}_dragIdx=i;e.dataTransfer.effectAllowed='move';setTimeout(()=>{const ws=document.querySelectorAll('.canvas-card-wrapper');if(ws[i])ws[i].classList.add('dragging');},0);}
+function dndEnd(e){_dragIdx=null;document.querySelectorAll('.canvas-card-wrapper').forEach(el=>{el.classList.remove('dragging');el.classList.remove('drag-over');});}
+function dndOver(e,i){e.preventDefault();if(_dragIdx===null||_dragIdx===i)return;document.querySelectorAll('.canvas-card-wrapper.drag-over').forEach(el=>el.classList.remove('drag-over'));e.currentTarget.classList.add('drag-over');}
+function dndLeave(e){e.currentTarget.classList.remove('drag-over');}
+function dndDrop(e,i){e.preventDefault();if(_dragIdx===null||_dragIdx===i){_dragIdx=null;return;}const steps=appState.sharedDish.methodology;const[moved]=steps.splice(_dragIdx,1);steps.splice(i,0,moved);_dragIdx=null;sync();}
 function toggleYTPill(){document.getElementById('yt-pill').classList.toggle('active');}
 function sendChatMessage(){const ta=document.getElementById('chat-textarea');const text=ta.value.trim();if(!text)return;const msgs=document.getElementById('chat-messages-list');const userMsg=document.createElement('div');userMsg.className='chat-message user';userMsg.textContent=text;msgs.appendChild(userMsg);ta.value='';const isYT=/youtube\.com|youtu\.be/i.test(text);if(isYT){const aiCard=document.createElement('div');aiCard.className='chat-yt-suggest';aiCard.innerHTML='<div class="yt-title">▶ Detected: YouTube Recipe Link</div><div class="small">Generate a workflow from this video?</div><button class="btn primary" style="width:100%;margin-top:8px" onclick="generateFromYT(this)">Generate Workflow</button>';msgs.appendChild(aiCard);}else{const aiMsg=document.createElement('div');aiMsg.className='chat-message';aiMsg.textContent='Got it! I\'ll update the workflow accordingly.';msgs.appendChild(aiMsg);}msgs.scrollTop=msgs.scrollHeight;}
 function generateFromYT(btn){const card=btn.closest('.chat-yt-suggest');card.classList.add('disabled');const msgs=document.getElementById('chat-messages-list');const successMsg=document.createElement('div');successMsg.className='chat-message';successMsg.innerHTML='✓ Workflow generated successfully and synced to the canvas.';msgs.appendChild(successMsg);msgs.scrollTop=msgs.scrollHeight;}
