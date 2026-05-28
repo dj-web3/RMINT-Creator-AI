@@ -54,35 +54,47 @@
     .panel { border:1.5px solid var(--g300); padding:12px; background:var(--paper); border-radius:14px; }
     .panel h3 { font-family:var(--serif); font-weight:500; font-size:17px; margin-bottom:10px; letter-spacing:-.01em; }
     .menu-layout { display:grid; grid-template-columns:1fr; gap:16px; align-items:start; }
-    .canvas-grid { display:flex; align-items:flex-start; gap:0; overflow-x:auto; padding:8px 0 16px; }
-    .canvas-card-wrapper { display:flex; align-items:flex-start; flex-shrink:0; cursor:grab; }
-    .canvas-card-wrapper.dragging { opacity:0.35; }
-    .canvas-card-wrapper.drag-over .canvas-col { outline:2px dashed var(--clay); border-radius:14px; background:rgba(217,119,87,.06); }
-    .canvas-col { display:flex; flex-direction:column; align-items:center; }
-    .canvas-col > .method-step { width:300px; margin-bottom:0; }
-    .canvas-arrow { display:flex; align-items:center; padding:0 10px; color:var(--clay); font-size:28px; font-weight:bold; flex-shrink:0; margin-top:90px; }
-    .branch-connector { width:2px; height:20px; background:var(--g300); }
-    .branch-h-line { display:flex; align-items:center; gap:6px; width:100%; }
-    .branch-label { font-family:var(--mono); font-size:10px; color:var(--g500); text-transform:uppercase; letter-spacing:.06em; }
-    .branch-card { width:300px; margin-bottom:0; }
-    .edge-arrow { position:absolute; width:26px; height:26px; border-radius:50%; background:var(--clay); color:white; border:none; cursor:pointer; display:none; align-items:center; justify-content:center; font-size:13px; font-weight:bold; z-index:10; box-shadow:0 2px 8px rgba(217,119,87,.35); transition:transform 150ms; }
-    .method-step:hover .edge-arrow { display:flex; }
-    .edge-arrow.right { right:-13px; top:50%; transform:translateY(-50%); }
-    .edge-arrow.right:hover { transform:translateY(-50%) scale(1.18); }
-    .edge-arrow.bottom { bottom:-13px; left:50%; transform:translateX(-50%); }
-    .edge-arrow.bottom:hover { transform:translateX(-50%) scale(1.18); }
-    .drag-hint { font-family:var(--mono); font-size:10px; color:var(--g500); padding:4px 0 0; text-align:center; letter-spacing:.03em; }
-    .canvas-card-top { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:4px; }
-    .canvas-delete-btn { background:none; border:none; cursor:pointer; color:var(--g500); font-size:16px; padding:2px 4px; border-radius:6px; line-height:1; transition:color 150ms,background 150ms; }
-    .canvas-delete-btn:hover { color:#c0392b; background:rgba(192,57,43,.08); }
-    .canvas-panel-header { display:flex; justify-content:space-between; align-items:center; padding:12px 12px 8px; position:sticky; top:0; background:var(--paper); z-index:2; border-radius:14px 14px 0 0; border-bottom:1.5px solid var(--g200); margin-bottom:0; }
+    .canvas-panel-header { display:flex; justify-content:space-between; align-items:center; padding:12px 14px; background:var(--paper); border-radius:14px 14px 0 0; border-bottom:1.5px solid var(--g200); }
     .canvas-panel-header h3 { margin-bottom:0; }
-    .canvas-panel-body { padding:8px 12px 12px; overflow-x:auto; }
-    .canvas-add-step { display:flex; align-items:center; flex-shrink:0; padding-left:10px; }
+    .canvas-panel-body { padding:0; overflow:hidden; border-radius:0 0 14px 14px; }
     .canvas-add-btn { padding:6px 12px; border:1.5px dashed var(--clay); border-radius:999px; background:var(--paper); color:var(--clay); font-family:var(--mono); font-size:11px; cursor:pointer; white-space:nowrap; transition:background 150ms; letter-spacing:.02em; }
     .canvas-add-btn:hover { background:var(--oat); }
-    .node-title-input { width:100%; border:none; background:none; font-family:var(--serif); font-size:15px; font-weight:500; color:var(--slate); padding:0; margin:0 0 8px; }
-    .node-title-input:focus { outline:none; border-bottom:1.5px solid var(--clay); }
+    .flow-canvas { position:relative; height:620px; background-color:var(--ivory); background-image:radial-gradient(circle, var(--g300) 1px, transparent 1px); background-size:22px 22px; overflow:auto; }
+    .flow-node { position:absolute; min-width:158px; max-width:200px; padding:10px 12px; background:var(--paper); border:1.5px solid var(--g300); border-radius:12px; cursor:move; user-select:none; box-shadow:0 1px 3px rgba(0,0,0,0.04); transition:box-shadow 150ms,border-color 150ms; z-index:2; }
+    .flow-node:hover { border-color:var(--slate); box-shadow:0 4px 14px rgba(0,0,0,0.08); }
+    .flow-node.dragging { opacity:0.7; z-index:5; }
+    .flow-node.start, .flow-node.end { min-width:80px; padding:10px 22px; border-radius:999px; text-align:center; font-family:var(--mono); font-size:12px; font-weight:600; letter-spacing:.08em; text-transform:uppercase; }
+    .flow-node.start { background:var(--olive); color:white; border-color:var(--olive); }
+    .flow-node.end { background:var(--clay); color:white; border-color:var(--clay); }
+    .flow-node-title { font-family:var(--serif); font-size:13px; font-weight:500; line-height:1.3; color:var(--slate); pointer-events:none; }
+    .flow-node-meta { font-size:10px; font-family:var(--mono); color:var(--g500); margin-top:4px; pointer-events:none; letter-spacing:.02em; }
+    .flow-node-chips { display:flex; gap:4px; flex-wrap:wrap; margin-top:6px; pointer-events:none; }
+    .flow-node-chip { font-size:9px; font-family:var(--mono); color:var(--olive); border:1px solid var(--olive); padding:1px 6px; border-radius:999px; letter-spacing:.04em; }
+    .flow-handle { position:absolute; width:11px; height:11px; border-radius:50%; background:var(--clay); border:2px solid var(--paper); cursor:crosshair; opacity:0; transition:opacity 150ms,transform 150ms; z-index:3; box-shadow:0 1px 3px rgba(0,0,0,0.2); }
+    .flow-node:hover .flow-handle { opacity:1; }
+    .flow-handle:hover { transform:scale(1.5); }
+    .flow-handle.t { top:-7px; left:50%; margin-left:-7px; }
+    .flow-handle.r { right:-7px; top:50%; margin-top:-7px; }
+    .flow-handle.b { bottom:-7px; left:50%; margin-left:-7px; }
+    .flow-handle.l { left:-7px; top:50%; margin-top:-7px; }
+    .flow-svg { position:absolute; top:0; left:0; pointer-events:none; z-index:1; overflow:visible; }
+    .flow-svg path.flow-edge { pointer-events:stroke; cursor:pointer; transition:stroke 100ms,stroke-width 100ms; }
+    .flow-svg path.flow-edge:hover { stroke:#c0392b !important; stroke-width:3 !important; }
+    .flow-node-delete { position:absolute; top:-8px; right:-8px; width:20px; height:20px; background:var(--paper); border:1.5px solid var(--g300); border-radius:50%; display:none; align-items:center; justify-content:center; font-size:11px; cursor:pointer; color:var(--g700); z-index:4; padding:0; line-height:1; }
+    .flow-node:hover .flow-node-delete { display:flex; }
+    .flow-node-delete:hover { background:#ffe8e1; border-color:#c0392b; color:#c0392b; }
+    .flow-hint { position:absolute; bottom:10px; left:14px; font-family:var(--mono); font-size:10px; color:var(--g500); background:rgba(255,255,255,0.85); padding:4px 10px; border-radius:999px; border:1px solid var(--g300); pointer-events:none; letter-spacing:.04em; z-index:1; }
+    .node-editor-overlay { position:fixed; inset:0; background:rgba(20,20,19,0.45); display:none; align-items:center; justify-content:center; z-index:1000; }
+    .node-editor-overlay.open { display:flex; }
+    .node-editor { background:var(--paper); border-radius:14px; padding:22px; width:440px; max-height:85vh; overflow-y:auto; box-shadow:0 20px 60px rgba(0,0,0,0.2); }
+    .node-editor h3 { font-family:var(--serif); font-weight:500; font-size:18px; margin-bottom:14px; }
+    .node-editor label { display:block; font-family:var(--mono); font-size:10px; color:var(--g500); text-transform:uppercase; letter-spacing:.06em; margin:12px 0 4px; }
+    .node-editor input, .node-editor textarea { width:100%; border:1.5px solid var(--g300); border-radius:8px; padding:8px 10px; font-family:var(--sans); font-size:13px; background:var(--paper); color:var(--slate); }
+    .node-editor input:focus, .node-editor textarea:focus { outline:none; border-color:var(--clay); }
+    .node-editor textarea { resize:vertical; min-height:60px; }
+    .node-editor .chef-group { display:flex; gap:6px; margin-top:6px; flex-wrap:wrap; }
+    .node-editor-actions { display:flex; gap:10px; margin-top:20px; justify-content:flex-end; }
+    .node-editor-actions .btn { padding:8px 18px; font-size:12px; }
     .chat-pills { display:flex; gap:6px; margin-bottom:8px; }
     .chat-pill { display:inline-flex; align-items:center; gap:5px; padding:5px 10px; border:1.5px solid var(--g300); border-radius:999px; font-family:var(--mono); font-size:11px; cursor:pointer; background:var(--paper); color:var(--g700); transition:border-color 150ms,background 150ms,color 150ms; }
     .chat-pill:hover { border-color:var(--clay); color:var(--clay); }
@@ -233,6 +245,33 @@
       </div>
     </div>
 
+    <div class="node-editor-overlay" id="node-editor-overlay" onclick="closeNodeEditor()">
+      <div class="node-editor" onclick="event.stopPropagation()">
+        <h3>Edit Step</h3>
+        <label>Title</label>
+        <input id="editor-title" type="text" />
+        <label>Process</label>
+        <input id="editor-process" type="text" />
+        <label>Duration</label>
+        <input id="editor-duration" type="text" />
+        <label>Start Time</label>
+        <input id="editor-starttime" type="text" />
+        <label>Ingredients (comma separated)</label>
+        <textarea id="editor-ingredients" rows="2"></textarea>
+        <label>Chefs</label>
+        <div class="chef-group">
+          <button type="button" class="chef-btn editor-chef-btn" data-chef="SOUS" onclick="toggleEditorChef(this)">SOUS</button>
+          <button type="button" class="chef-btn editor-chef-btn" data-chef="STATION" onclick="toggleEditorChef(this)">STATION</button>
+          <button type="button" class="chef-btn editor-chef-btn" data-chef="JUNIOR" onclick="toggleEditorChef(this)">JUNIOR</button>
+          <button type="button" class="chef-btn editor-chef-btn" data-chef="TRAINEE" onclick="toggleEditorChef(this)">TRAINEE</button>
+        </div>
+        <div class="node-editor-actions">
+          <button class="btn" onclick="closeNodeEditor()">Cancel</button>
+          <button class="btn primary" onclick="saveNodeEditor()">Save</button>
+        </div>
+      </div>
+    </div>
+
     <div class="view" id="guide-view">
       <div class="guide-layout">
         <div class="panel"><h3>Guide Cards</h3><div id="guide-cards"></div></div>
@@ -275,55 +314,119 @@
   </div>
 </div>
 <script>
-const appState={selectedPlanStep:null,openDropdown:null,connections:[],sharedDish:{ingredients:[{name:'Chicken',quantity:'800g'},{name:'Yogurt',quantity:'200g'},{name:'Rice',quantity:'1kg'},{name:'Spices',quantity:'120g'}],methodology:[{id:'1',title:'Chicken Marination',chefs:['SOUS','STATION'],ingredients:['Chicken','Yogurt'],duration:'45m',startTime:'07:00',process:'Marinating',branches:[]},{id:'2',title:'Rice Preparation',chefs:['JUNIOR'],ingredients:['Rice','Spices'],duration:'30m',startTime:'08:00',process:'Boiling',branches:[]},{id:'3',title:'Final Assembly',chefs:['TRAINEE'],ingredients:['Chicken','Rice'],duration:'20m',startTime:'09:00',process:'Combining',branches:[]}]}};
+const appState={selectedPlanStep:null,editingNodeId:null,sharedDish:{ingredients:[{name:'Chicken',quantity:'800g'},{name:'Yogurt',quantity:'200g'},{name:'Rice',quantity:'1kg'},{name:'Spices',quantity:'120g'}],methodology:[{id:'1',title:'Chicken Marination',chefs:['SOUS','STATION'],ingredients:['Chicken','Yogurt'],duration:'45m',startTime:'07:00',process:'Marinating',x:220,y:240},{id:'2',title:'Rice Preparation',chefs:['JUNIOR'],ingredients:['Rice','Spices'],duration:'30m',startTime:'08:00',process:'Boiling',x:470,y:240},{id:'3',title:'Final Assembly',chefs:['TRAINEE'],ingredients:['Chicken','Rice'],duration:'20m',startTime:'09:00',process:'Combining',x:720,y:240}],flowNodes:[{id:'_start',type:'start',label:'Start',x:60,y:264},{id:'_end',type:'end',label:'End',x:980,y:264}],connections:[{from:'_start',to:'1'},{from:'1',to:'2'},{from:'2',to:'3'},{from:'3',to:'_end'}]}};
 function deriveTasks(){const tasks=[];appState.sharedDish.methodology.forEach(step=>{step.chefs.forEach(chef=>{tasks.push({title:step.title,chef,startTime:step.startTime,duration:parseInt(step.duration,10),process:step.process,ingredients:step.ingredients});});});return tasks;}
 function renderIngredients(){const modalContainer=document.getElementById('ingredients-modal-list');const html=appState.sharedDish.ingredients.map(item=>`<div class="ingredient-item"><strong>${item.name}</strong><div class="small">${item.quantity}</div></div>`).join('');if(modalContainer){modalContainer.innerHTML=html;}}
-function getTitleById(id){for(const s of appState.sharedDish.methodology){if(s.id===id)return s.title;if(s.branches)for(const b of s.branches)if(b.id===id)return b.title;}return id;}
-function renderCanvas(){
-  const steps=appState.sharedDish.methodology;
-  function chefs(list,fn){return ['SOUS','STATION','JUNIOR','TRAINEE'].map(c=>`<button type="button" class="chef-btn ${list.includes(c)?'active':''}" onclick="${fn}('${c}')">${c}</button>`).join('');}
-  function makeCard(id,headHtml,fields,extraBtns){return `<div class="method-step" style="width:300px;margin-bottom:0" data-step-id="${id}"><div class="canvas-card-top">${headHtml}<button class="canvas-delete-btn" onclick="deleteAny_id('${id}')">✕</button></div>${fields}${extraBtns||''}</div>`;}
-  const cols=steps.map((step,i)=>{
-    if(!step.branches)step.branches=[];
-    const headHtml=`<input class="node-title-input" value="Step ${i+1}: ${step.title}" onchange="updateStep(${i},'title',this.value.replace(/^Step \\d+: /,''))"/>`;
-    const fields=`<label>Process</label><input value="${step.process}" onchange="updateStep(${i},'process',this.value)"/><label>Duration</label><input value="${step.duration}" onchange="updateStep(${i},'duration',this.value)"/><label>Start Time</label><input value="${step.startTime}" onchange="updateStep(${i},'startTime',this.value)"/><label>Ingredients</label><textarea rows="2" onchange="updateIngredients(${i},this.value)">${step.ingredients.join(', ')}</textarea><div class="chef-group">${chefs(step.chefs,`(c)=>toggleChef(${i},c)`)}</div>`;
-    const extraBtns=`${step.branches.length<3?`<button class="edge-arrow bottom" onclick="addBranch_id('${step.id}')" title="Add branch">↓</button>`:''}`;
-    const mainCard=makeCard(step.id,headHtml,fields,extraBtns);
-    const branchCards=step.branches.map((b,bi)=>{
-      if(!b.chefs)b.chefs=[];if(!b.ingredients)b.ingredients=[];if(!b.startTime)b.startTime='10:00';
-      const bHead=`<input class="node-title-input" value="${b.title}" onchange="updateBranch(${i},${bi},'title',this.value)"/>`;
-      const bFields=`<label>Process</label><input value="${b.process}" onchange="updateBranch(${i},${bi},'process',this.value)"/><label>Duration</label><input value="${b.duration}" onchange="updateBranch(${i},${bi},'duration',this.value)"/><label>Start Time</label><input value="${b.startTime}" onchange="updateBranch(${i},${bi},'startTime',this.value)"/><label>Ingredients</label><textarea rows="2" onchange="updateBranchIngredients(${i},${bi},this.value)">${b.ingredients.join(', ')}</textarea><div class="chef-group">${chefs(b.chefs,`(c)=>toggleBranchChef(${i},${bi},c)`)}</div>`;
-      return `<div class="branch-connector"></div>${makeCard(b.id,bHead,bFields,'')}`;
-    }).join('');
-    const rightArrow=i<steps.length-1?'<div class="canvas-arrow">→</div>':'';
-    return `<div class="canvas-card-wrapper" draggable="true" ondragstart="dndStart(event,${i})" ondragend="dndEnd(event)" ondragover="dndOver(event,${i})" ondragleave="dndLeave(event)" ondrop="dndDrop(event,${i})"><div class="canvas-col">${mainCard}${branchCards}</div>${rightArrow}</div>`;
-  }).join('');
-  document.getElementById('canvas-nodes').innerHTML=`<div class="canvas-grid">${cols}</div>`;
+let _flowDrag=null,_connDrag=null;
+function findFlowNode(id){const m=appState.sharedDish.methodology.find(s=>s.id===id);if(m)return m;return appState.sharedDish.flowNodes.find(n=>n.id===id);}
+function renderFlowNode(n){
+  if(n._type==='start'||n._type==='end'){
+    const hCls=n._type==='start'?'r':'l';
+    return `<div class="flow-node ${n._type}" data-node-id="${n.id}" style="left:${n.x}px;top:${n.y}px" onmousedown="onNodeMouseDown(event,'${n.id}')">${n.label}<div class="flow-handle ${hCls}" onmousedown="onHandleMouseDown(event,'${n.id}')"></div></div>`;
+  }
+  const chips=(n.chefs||[]).map(c=>`<span class="flow-node-chip">${c}</span>`).join('');
+  const meta=[n.process,n.duration,n.startTime].filter(Boolean).join(' • ');
+  return `<div class="flow-node process" data-node-id="${n.id}" style="left:${n.x}px;top:${n.y}px" onmousedown="onNodeMouseDown(event,'${n.id}')"><div class="flow-node-title">${n.title||'Untitled'}</div>${meta?`<div class="flow-node-meta">${meta}</div>`:''}${chips?`<div class="flow-node-chips">${chips}</div>`:''}<button class="flow-node-delete" onmousedown="event.stopPropagation()" onclick="deleteFlowNode(event,'${n.id}')">✕</button><div class="flow-handle t" onmousedown="onHandleMouseDown(event,'${n.id}')"></div><div class="flow-handle r" onmousedown="onHandleMouseDown(event,'${n.id}')"></div><div class="flow-handle b" onmousedown="onHandleMouseDown(event,'${n.id}')"></div><div class="flow-handle l" onmousedown="onHandleMouseDown(event,'${n.id}')"></div></div>`;
 }
+function renderCanvas(){
+  const meth=appState.sharedDish.methodology;
+  const fn=appState.sharedDish.flowNodes;
+  const nodeHtml=[...meth.map(s=>renderFlowNode({...s,_type:'process'})),...fn.map(n=>renderFlowNode({...n,_type:n.type}))].join('');
+  const hint=`<div class="flow-hint">Click node to edit • Drag node to move • Drag orange dot to connect • Click line to remove</div>`;
+  document.getElementById('canvas-nodes').innerHTML=`<div class="flow-canvas" id="flow-canvas"><svg class="flow-svg" id="flow-svg"></svg>${nodeHtml}${hint}</div>`;
+  const canvas=document.getElementById('flow-canvas');
+  if(canvas){canvas.addEventListener('mousemove',onFlowMouseMove);canvas.addEventListener('mouseup',onFlowMouseUp);}
+  drawFlowEdges();
+}
+function edgePoint(fromEl,toEl){const fcx=fromEl.offsetLeft+fromEl.offsetWidth/2,fcy=fromEl.offsetTop+fromEl.offsetHeight/2;const tcx=toEl.offsetLeft+toEl.offsetWidth/2,tcy=toEl.offsetTop+toEl.offsetHeight/2;const dx=tcx-fcx,dy=tcy-fcy;if(dx===0&&dy===0)return{x:fcx,y:fcy};const w=fromEl.offsetWidth/2,h=fromEl.offsetHeight/2;const ax=Math.abs(dx)||0.01,ay=Math.abs(dy)||0.01;const s=(ax/w>ay/h)?w/ax:h/ay;return{x:fcx+dx*s,y:fcy+dy*s};}
+function drawFlowEdges(){
+  const svg=document.getElementById('flow-svg');const canvas=document.getElementById('flow-canvas');
+  if(!svg||!canvas)return;
+  const w=Math.max(canvas.scrollWidth,canvas.clientWidth),h=Math.max(canvas.scrollHeight,canvas.clientHeight);
+  svg.setAttribute('width',w);svg.setAttribute('height',h);svg.style.width=w+'px';svg.style.height=h+'px';
+  const defs=`<defs><marker id="ah" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto"><polygon points="0 0,10 4,0 8" fill="#87867F"/></marker></defs>`;
+  const paths=appState.sharedDish.connections.map(c=>{
+    const fromEl=canvas.querySelector(`[data-node-id="${c.from}"]`),toEl=canvas.querySelector(`[data-node-id="${c.to}"]`);
+    if(!fromEl||!toEl)return '';
+    const ff=edgePoint(fromEl,toEl),tt=edgePoint(toEl,fromEl);
+    const dxV=Math.max(Math.abs(tt.x-ff.x)*0.5,40);
+    return `<path class="flow-edge" d="M${ff.x},${ff.y} C${ff.x+dxV},${ff.y} ${tt.x-dxV},${tt.y} ${tt.x},${tt.y}" stroke="#87867F" stroke-width="2" fill="none" marker-end="url(#ah)" onclick="removeFlowConnection(event,'${c.from}','${c.to}')"><title>Click to remove</title></path>`;
+  }).join('');
+  const tempLine=_connDrag?`<path d="${_connDrag.tempPath}" stroke="#D97757" stroke-width="2" stroke-dasharray="6,4" fill="none" />`:'';
+  svg.innerHTML=defs+paths+tempLine;
+}
+function onNodeMouseDown(e,id){if(e.target.classList.contains('flow-handle'))return;if(e.target.classList.contains('flow-node-delete'))return;e.preventDefault();const node=findFlowNode(id);if(!node)return;_flowDrag={nodeId:id,startX:e.clientX,startY:e.clientY,origX:node.x,origY:node.y,moved:false};}
+function onFlowMouseMove(e){
+  if(_flowDrag){
+    const dx=e.clientX-_flowDrag.startX,dy=e.clientY-_flowDrag.startY;
+    if(Math.abs(dx)>3||Math.abs(dy)>3)_flowDrag.moved=true;
+    const node=findFlowNode(_flowDrag.nodeId);if(!node)return;
+    node.x=Math.max(0,_flowDrag.origX+dx);node.y=Math.max(0,_flowDrag.origY+dy);
+    const el=document.querySelector(`[data-node-id="${_flowDrag.nodeId}"]`);
+    if(el){el.style.left=node.x+'px';el.style.top=node.y+'px';el.classList.add('dragging');}
+    drawFlowEdges();
+  } else if(_connDrag){
+    const canvas=document.getElementById('flow-canvas');const rect=canvas.getBoundingClientRect();
+    const tx=e.clientX-rect.left+canvas.scrollLeft,ty=e.clientY-rect.top+canvas.scrollTop;
+    const sx=_connDrag.startX,sy=_connDrag.startY;const dxV=Math.max(Math.abs(tx-sx)*0.5,40);
+    _connDrag.tempPath=`M${sx},${sy} C${sx+dxV},${sy} ${tx-dxV},${ty} ${tx},${ty}`;
+    drawFlowEdges();
+  }
+}
+function onFlowMouseUp(e){
+  if(_flowDrag){
+    const el=document.querySelector(`[data-node-id="${_flowDrag.nodeId}"]`);if(el)el.classList.remove('dragging');
+    const wasMoved=_flowDrag.moved,id=_flowDrag.nodeId;_flowDrag=null;
+    if(!wasMoved)openNodeEditor(id);
+  }
+  if(_connDrag){
+    const target=document.elementFromPoint(e.clientX,e.clientY);
+    const nodeEl=target?target.closest('.flow-node'):null;
+    if(nodeEl){const toId=nodeEl.dataset.nodeId,fromId=_connDrag.fromId;
+      if(fromId!==toId&&!appState.sharedDish.connections.some(c=>c.from===fromId&&c.to===toId))appState.sharedDish.connections.push({from:fromId,to:toId});}
+    _connDrag=null;drawFlowEdges();
+  }
+}
+function onHandleMouseDown(e,id){
+  e.preventDefault();e.stopPropagation();
+  const canvas=document.getElementById('flow-canvas');const rect=canvas.getBoundingClientRect();
+  const hRect=e.target.getBoundingClientRect();
+  const sx=hRect.left+hRect.width/2-rect.left+canvas.scrollLeft;
+  const sy=hRect.top+hRect.height/2-rect.top+canvas.scrollTop;
+  _connDrag={fromId:id,startX:sx,startY:sy,tempPath:`M${sx},${sy} L${sx},${sy}`};
+}
+function openNodeEditor(id){
+  const node=findFlowNode(id);if(!node||node.type==='start'||node.type==='end')return;
+  appState.editingNodeId=id;
+  document.getElementById('editor-title').value=node.title||'';
+  document.getElementById('editor-process').value=node.process||'';
+  document.getElementById('editor-duration').value=node.duration||'';
+  document.getElementById('editor-starttime').value=node.startTime||'';
+  document.getElementById('editor-ingredients').value=(node.ingredients||[]).join(', ');
+  document.querySelectorAll('.editor-chef-btn').forEach(btn=>btn.classList.toggle('active',(node.chefs||[]).includes(btn.dataset.chef)));
+  document.getElementById('node-editor-overlay').classList.add('open');
+}
+function saveNodeEditor(){
+  const id=appState.editingNodeId;if(!id)return;
+  const node=appState.sharedDish.methodology.find(s=>s.id===id);if(!node)return;
+  node.title=document.getElementById('editor-title').value;
+  node.process=document.getElementById('editor-process').value;
+  node.duration=document.getElementById('editor-duration').value;
+  node.startTime=document.getElementById('editor-starttime').value;
+  node.ingredients=document.getElementById('editor-ingredients').value.split(',').map(s=>s.trim()).filter(Boolean);
+  node.chefs=Array.from(document.querySelectorAll('.editor-chef-btn.active')).map(b=>b.dataset.chef);
+  closeNodeEditor();sync();
+}
+function closeNodeEditor(){document.getElementById('node-editor-overlay').classList.remove('open');appState.editingNodeId=null;}
+function toggleEditorChef(btn){btn.classList.toggle('active');}
+function addStep(){const id=String(Date.now());const cnt=appState.sharedDish.methodology.length;appState.sharedDish.methodology.push({id,title:'New Step',process:'Prep',duration:'15m',startTime:'10:00',chefs:[],ingredients:[],x:200+(cnt%4)*220,y:420+Math.floor(cnt/4)*150});sync();}
+function deleteFlowNode(e,id){e.stopPropagation();const idx=appState.sharedDish.methodology.findIndex(s=>s.id===id);if(idx===-1)return;appState.sharedDish.methodology.splice(idx,1);appState.sharedDish.connections=appState.sharedDish.connections.filter(c=>c.from!==id&&c.to!==id);sync();}
+function removeFlowConnection(e,from,to){e.stopPropagation();appState.sharedDish.connections=appState.sharedDish.connections.filter(c=>!(c.from===from&&c.to===to));drawFlowEdges();}
 function renderMethodology(){}
 function renderGuide(){document.getElementById('guide-cards').innerHTML=appState.sharedDish.methodology.map(step=>`<div class="guide-card"><div class="guide-card-thumb"><div class="guide-thumb-icon">▶</div></div><div class="node-title">${step.title}</div><div class="small">Process: ${step.process}</div><div class="small">Start: ${step.startTime}</div><div class="small">Duration: ${step.duration}</div><div class="small">Chefs: ${step.chefs.join(', ')}</div><div class="small">Ingredients: ${step.ingredients.join(', ')}</div></div>`).join('');}
 function renderClockCards(){document.getElementById('clock-cards').innerHTML=appState.sharedDish.methodology.map((step,index)=>`<div class="clock-card"><div class="node-title">${step.title}</div><div class="small">${step.process}</div><div class="small">${step.startTime} • ${step.duration}</div><div class="small">Chefs: ${step.chefs.join(', ')}</div><div class="small">Ingredients: ${step.ingredients.join(', ')}</div></div>`).join('');}
 function renderClockView(){document.getElementById('clock-step-list').innerHTML=appState.sharedDish.methodology.map(step=>`<div class="guide-card"><div class="node-title">${step.title}</div><div class="small">${step.startTime}</div><div class="small">${step.duration}</div></div>`).join('');document.getElementById('clock-face').innerHTML=appState.sharedDish.methodology.map((step,index)=>{const size=320-(index*28);const top=(420-size)/2;return `<div class="arc" style="width:${size}px;height:${size}px;top:${top}px;left:${top}px"></div>`;}).join('');}
 function renderTimeline(){const tasks=deriveTasks();const hours=['7AM','8AM','9AM','10AM','11AM','12PM','1PM','2PM','3PM','4PM','5PM','6PM','7PM'];const chefs=['SOUS','STATION','JUNIOR','TRAINEE'];document.getElementById('timeline').innerHTML=`<div class="timeline-header">${hours.map(hour=>`<div class="timeline-hour">${hour}</div>`).join('')}</div>${chefs.map(chef=>`<div><strong>${chef}</strong><div class="timeline-bars">${tasks.filter(task=>task.chef===chef).map(task=>{const parts=task.startTime.split(':');const left=((parseInt(parts[0])-7)*60)+parseInt(parts[1]);const width=task.duration*4;return `<div class="bar" style="left:${left}px;width:${width}px" onclick="showTask('${task.title}','${task.process}','${task.startTime}','${task.duration}','${task.chef}')"><strong>${task.title}</strong><br>${task.startTime} • ${task.duration}m</div>`;}).join('')}</div></div>`).join('')}`;}
-function deleteStep(index){appState.sharedDish.methodology.splice(index,1);sync();}
-function deleteStep_id(id){const i=appState.sharedDish.methodology.findIndex(s=>s.id===id);if(i>-1){appState.sharedDish.methodology.splice(i,1);sync();}}
-function addStep(){appState.sharedDish.methodology.push({id:String(Date.now()),title:'New Step',chefs:[],ingredients:[],duration:'15m',startTime:'10:00',process:'Prep',branches:[]});sync();}
-function addStepAfter(index){appState.sharedDish.methodology.splice(index+1,0,{id:String(Date.now()),title:'New Step',chefs:[],ingredients:[],duration:'15m',startTime:'10:00',process:'Prep',branches:[]});sync();}
-function addStepAfter_id(id){const i=appState.sharedDish.methodology.findIndex(s=>s.id===id);if(i>-1)addStepAfter(i);}
-function addBranch(index){const step=appState.sharedDish.methodology[index];if(!step.branches)step.branches=[];if(step.branches.length>=3)return;step.branches.push({id:String(Date.now()),title:'Branch Step',process:'Prep',duration:'15m',startTime:'10:00',ingredients:[],chefs:[]});sync();}
-function addBranch_id(id){const i=appState.sharedDish.methodology.findIndex(s=>s.id===id);if(i>-1)addBranch(i);}
-function deleteBranch(si,bi){appState.sharedDish.methodology[si].branches.splice(bi,1);appState.connections=appState.connections.filter(c=>c.from!==appState.sharedDish.methodology[si]?.branches[bi]?.id&&c.to!==appState.sharedDish.methodology[si]?.branches[bi]?.id);sync();}
-function deleteBranch_id(id){for(let i=0;i<appState.sharedDish.methodology.length;i++){const bi=appState.sharedDish.methodology[i].branches?.findIndex(b=>b.id===id)??-1;if(bi>-1){appState.sharedDish.methodology[i].branches.splice(bi,1);appState.connections=appState.connections.filter(c=>c.from!==id&&c.to!==id);sync();return;}}}
-function updateBranch(si,bi,field,value){appState.sharedDish.methodology[si].branches[bi][field]=value;}
-function updateBranchIngredients(si,bi,val){appState.sharedDish.methodology[si].branches[bi].ingredients=val.split(',').map(s=>s.trim()).filter(Boolean);}
-function toggleBranchChef(si,bi,chef){const b=appState.sharedDish.methodology[si].branches[bi];if(!b.chefs)b.chefs=[];if(b.chefs.includes(chef))b.chefs=b.chefs.filter(c=>c!==chef);else b.chefs.push(chef);renderCanvas();}
-function deleteAny_id(id){const si=appState.sharedDish.methodology.findIndex(s=>s.id===id);if(si>-1){deleteStep_id(id);}else{deleteBranch_id(id);}}
-let _dragIdx=null;
-function dndStart(e,i){const t=e.target;if(t.tagName==='INPUT'||t.tagName==='TEXTAREA'||t.tagName==='BUTTON'||t.tagName==='SELECT'){e.preventDefault();return;}_dragIdx=i;e.dataTransfer.effectAllowed='move';setTimeout(()=>{const ws=document.querySelectorAll('.canvas-card-wrapper');if(ws[i])ws[i].classList.add('dragging');},0);}
-function dndEnd(e){_dragIdx=null;document.querySelectorAll('.canvas-card-wrapper').forEach(el=>{el.classList.remove('dragging');el.classList.remove('drag-over');});}
-function dndOver(e,i){e.preventDefault();if(_dragIdx===null||_dragIdx===i)return;document.querySelectorAll('.canvas-card-wrapper.drag-over').forEach(el=>el.classList.remove('drag-over'));e.currentTarget.classList.add('drag-over');}
-function dndLeave(e){e.currentTarget.classList.remove('drag-over');}
-function dndDrop(e,i){e.preventDefault();if(_dragIdx===null||_dragIdx===i){_dragIdx=null;return;}const steps=appState.sharedDish.methodology;const[moved]=steps.splice(_dragIdx,1);steps.splice(i,0,moved);_dragIdx=null;sync();}
 function toggleYTPill(){document.getElementById('yt-pill').classList.toggle('active');}
 function sendChatMessage(){const ta=document.getElementById('chat-textarea');const text=ta.value.trim();if(!text)return;const msgs=document.getElementById('chat-messages-list');const userMsg=document.createElement('div');userMsg.className='chat-message user';userMsg.textContent=text;msgs.appendChild(userMsg);ta.value='';const isYT=/youtube\.com|youtu\.be/i.test(text);if(isYT){const aiCard=document.createElement('div');aiCard.className='chat-yt-suggest';aiCard.innerHTML='<div class="yt-title">▶ Detected: YouTube Recipe Link</div><div class="small">Generate a workflow from this video?</div><button class="btn primary" style="width:100%;margin-top:8px" onclick="generateFromYT(this)">Generate Workflow</button>';msgs.appendChild(aiCard);}else{const aiMsg=document.createElement('div');aiMsg.className='chat-message';aiMsg.textContent='Got it! I\'ll update the workflow accordingly.';msgs.appendChild(aiMsg);}msgs.scrollTop=msgs.scrollHeight;}
 function generateFromYT(btn){const card=btn.closest('.chat-yt-suggest');card.classList.add('disabled');const msgs=document.getElementById('chat-messages-list');const successMsg=document.createElement('div');successMsg.className='chat-message';successMsg.innerHTML='✓ Workflow generated successfully and synced to the canvas.';msgs.appendChild(successMsg);msgs.scrollTop=msgs.scrollHeight;}
@@ -332,9 +435,6 @@ function openIngredientsModal(){document.getElementById('ingredients-modal').sty
 function closeIngredientsModal(){document.getElementById('ingredients-modal').style.display='none';}
 function showTask(title,process,start,duration,chef){alert('STEP DETAILS\n\n'+'Step: '+title+'\n'+'Process: '+process+'\n'+'Chef: '+chef+'\n'+'Start: '+start+'\n'+'Duration: '+duration);}
 function selectPlanStep(index){appState.selectedPlanStep=index;renderClockCards();}
-function updateStep(index,field,value){appState.sharedDish.methodology[index][field]=value;sync();}
-function updateIngredients(index,value){appState.sharedDish.methodology[index].ingredients=value.split(',').map(item=>item.trim()).filter(Boolean);sync();}
-function toggleChef(index,chef){const chefs=appState.sharedDish.methodology[index].chefs;if(chefs.includes(chef)){appState.sharedDish.methodology[index].chefs=chefs.filter(c=>c!==chef);}else{appState.sharedDish.methodology[index].chefs.push(chef);}sync();}
 function sync(){renderIngredients();renderCanvas();renderMethodology();renderGuide();renderTimeline();renderClockCards();renderClockView();}
 document.querySelectorAll('.nav-btn[data-view]').forEach(button=>{button.addEventListener('click',()=>{document.querySelectorAll('.nav-btn[data-view]').forEach(btn=>btn.classList.remove('active'));button.classList.add('active');document.querySelectorAll('.view').forEach(view=>view.classList.remove('active'));document.getElementById(button.dataset.view).classList.add('active');});});
 document.querySelectorAll('.nav-btn[data-main]').forEach(button=>{button.addEventListener('click',()=>{document.querySelectorAll('.nav-btn').forEach(btn=>btn.classList.remove('active'));button.classList.add('active');document.querySelectorAll('.view').forEach(view=>view.classList.remove('active'));const section=button.dataset.main;if(section==='discovery'){document.getElementById('discovery-view').classList.add('active');}if(section==='pairing'){document.getElementById('pairing-view').classList.add('active');}});});
