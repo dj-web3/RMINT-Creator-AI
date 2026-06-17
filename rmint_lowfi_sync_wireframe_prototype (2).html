@@ -148,9 +148,19 @@
     .ingredients-modal-header { display:flex; justify-content:space-between; margin-bottom:16px; align-items:center; }
     .ingredients-modal-header strong { font-family:var(--serif); font-size:17px; }
 
-    .clock-layout { display:grid; grid-template-columns:280px 1fr; gap:20px; }
-    .clock-face { width:420px; height:420px; border:2px solid var(--g300); border-radius:50%; position:relative; margin:auto; }
-    .arc { position:absolute; border:2px solid var(--g300); border-radius:50%; }
+    .clock-layout { display:grid; grid-template-columns:240px 1fr; gap:20px; align-items:start; }
+    .clock-face { display:flex; justify-content:center; align-items:center; }
+    .clock-seg { cursor:pointer; transition:opacity 120ms; }
+    .clock-seg:hover { opacity:.72; }
+    .clock-ring-bg { fill:none; stroke:var(--g200); stroke-width:1; }
+    .clock-tick { stroke:var(--g300); stroke-width:1.5; }
+    .clock-hour-label { font-family:var(--mono); font-size:10px; fill:var(--g500); text-anchor:middle; dominant-baseline:middle; }
+    .clock-hub-label { font-family:var(--mono); font-size:10px; fill:var(--g500); text-anchor:middle; dominant-baseline:middle; letter-spacing:.05em; }
+    .chef-legend { display:flex; flex-direction:column; gap:8px; margin-bottom:16px; }
+    .chef-legend-item { display:flex; align-items:center; gap:8px; font-family:var(--mono); font-size:11px; color:var(--g700); letter-spacing:.02em; }
+    .chef-dot { width:12px; height:12px; border-radius:50%; flex-shrink:0; }
+    .clock-task-item { border:1.5px solid var(--g300); border-left-width:4px; border-radius:10px; padding:8px 10px; margin-bottom:8px; background:var(--paper); }
+    .clock-task-item .ct-title { font-family:var(--serif); font-size:13px; font-weight:500; color:var(--slate); }
     .placeholder { border:1.5px dashed var(--g300); padding:40px; text-align:center; border-radius:14px; color:var(--g500); font-family:var(--mono); font-size:13px; }
   </style>
 </head>
@@ -425,7 +435,34 @@ function removeFlowConnection(e,from,to){e.stopPropagation();appState.sharedDish
 function renderMethodology(){}
 function renderGuide(){document.getElementById('guide-cards').innerHTML=appState.sharedDish.methodology.map(step=>`<div class="guide-card"><div class="guide-card-thumb"><div class="guide-thumb-icon">▶</div></div><div class="node-title">${step.title}</div><div class="small">Process: ${step.process}</div><div class="small">Start: ${step.startTime}</div><div class="small">Duration: ${step.duration}</div><div class="small">Chefs: ${step.chefs.join(', ')}</div><div class="small">Ingredients: ${step.ingredients.join(', ')}</div></div>`).join('');}
 function renderClockCards(){document.getElementById('clock-cards').innerHTML=appState.sharedDish.methodology.map((step,index)=>`<div class="clock-card"><div class="node-title">${step.title}</div><div class="small">${step.process}</div><div class="small">${step.startTime} • ${step.duration}</div><div class="small">Chefs: ${step.chefs.join(', ')}</div><div class="small">Ingredients: ${step.ingredients.join(', ')}</div></div>`).join('');}
-function renderClockView(){document.getElementById('clock-step-list').innerHTML=appState.sharedDish.methodology.map(step=>`<div class="guide-card"><div class="node-title">${step.title}</div><div class="small">${step.startTime}</div><div class="small">${step.duration}</div></div>`).join('');document.getElementById('clock-face').innerHTML=appState.sharedDish.methodology.map((step,index)=>{const size=320-(index*28);const top=(420-size)/2;return `<div class="arc" style="width:${size}px;height:${size}px;top:${top}px;left:${top}px"></div>`;}).join('');}
+const CHEF_ORDER=['SOUS','STATION','JUNIOR','TRAINEE'];
+const CHEF_COLORS={SOUS:'#D97757',STATION:'#788C5D',JUNIOR:'#5B7FA6',TRAINEE:'#A86A9E'};
+const CLOCK_START_MIN=420,CLOCK_END_MIN=1140;/* 7AM–7PM = 12h window */
+function timeToDeg(mins){const c=Math.max(CLOCK_START_MIN,Math.min(CLOCK_END_MIN,mins));return ((c-CLOCK_START_MIN)/(CLOCK_END_MIN-CLOCK_START_MIN))*360;}
+function ptA(cx,cy,r,deg){const a=deg*Math.PI/180;return [cx+r*Math.sin(a),cy-r*Math.cos(a)];}
+function sectorPath(cx,cy,ri,ro,a0,a1){const large=(a1-a0)>180?1:0;const[x0o,y0o]=ptA(cx,cy,ro,a0);const[x1o,y1o]=ptA(cx,cy,ro,a1);const[x1i,y1i]=ptA(cx,cy,ri,a1);const[x0i,y0i]=ptA(cx,cy,ri,a0);return `M${x0o},${y0o} A${ro},${ro} 0 ${large} 1 ${x1o},${y1o} L${x1i},${y1i} A${ri},${ri} 0 ${large} 0 ${x0i},${y0i} Z`;}
+function fmtHour(h){const ap=h%24<12?'AM':'PM';let hh=h%12;if(hh===0)hh=12;return hh+ap;}
+function minsToHHMM(m){const h=Math.floor(m/60),mm=m%60;return String(h).padStart(2,'0')+':'+String(mm).padStart(2,'0');}
+function renderClockView(){
+  const tasks=deriveTasks();
+  // Left: legend + all steps sorted by time, with parameters
+  const legend=`<div class="chef-legend">${CHEF_ORDER.map(c=>`<div class="chef-legend-item"><span class="chef-dot" style="background:${CHEF_COLORS[c]}"></span>${c}</div>`).join('')}</div>`;
+  const sorted=[...tasks].sort((a,b)=>{const pa=a.startTime.split(':'),pb=b.startTime.split(':');return (pa[0]*60+ +pa[1])-(pb[0]*60+ +pb[1]);});
+  const list=sorted.map(t=>{const end=minsToHHMM((+t.startTime.split(':')[0]*60+ +t.startTime.split(':')[1])+t.duration);return `<div class="clock-task-item" style="border-left-color:${CHEF_COLORS[t.chef]||'var(--g300)'}"><div class="ct-title">${t.title}</div><div class="small">${t.chef} • ${t.process}</div><div class="small">${t.startTime}–${end} (${t.duration}m)</div><div class="small">${(t.ingredients||[]).join(', ')}</div></div>`;}).join('');
+  document.getElementById('clock-step-list').innerHTML=legend+list;
+  // Right: radial clock SVG
+  const SZ=460,CX=230,CY=230;
+  const ringW=28,gap=7,rOuterStart=196,labelR=214;
+  const rings=CHEF_ORDER.map((c,i)=>{const ro=rOuterStart-i*(ringW+gap);return {chef:c,ro,ri:ro-ringW};});
+  const ringBg=rings.map(r=>`<circle class="clock-ring-bg" cx="${CX}" cy="${CY}" r="${(r.ro+r.ri)/2}" stroke-width="${ringW}" stroke="var(--g100)" fill="none"/>`).join('');
+  // Hour ticks + labels (7AM..6PM around, 7 returns to top)
+  let ticks='';
+  for(let h=7;h<=18;h++){const deg=timeToDeg(h*60);const[x1,y1]=ptA(CX,CY,rOuterStart+2,deg);const[x2,y2]=ptA(CX,CY,rOuterStart+8,deg);const[lx,ly]=ptA(CX,CY,labelR,deg);ticks+=`<line class="clock-tick" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"/><text class="clock-hour-label" x="${lx}" y="${ly}">${fmtHour(h)}</text>`;}
+  // Task segments on each chef ring
+  const segs=tasks.map(t=>{const ring=rings.find(r=>r.chef===t.chef);if(!ring)return '';const parts=t.startTime.split(':');const startMin=(+parts[0])*60+(+parts[1]);let a0=timeToDeg(startMin),a1=timeToDeg(startMin+t.duration);if(a1-a0<1.5)a1=a0+1.5;const d=sectorPath(CX,CY,ring.ri,ring.ro,a0,a1);return `<path class="clock-seg" d="${d}" fill="${CHEF_COLORS[t.chef]}" stroke="var(--paper)" stroke-width="1.5" onclick="showTask('${t.title.replace(/'/g,"\\'")}','${t.process}','${t.startTime}','${t.duration}','${t.chef}')"><title>${t.title} — ${t.chef}\n${t.startTime} • ${t.duration}m</title></path>`;}).join('');
+  const hub=`<circle cx="${CX}" cy="${CY}" r="${rings[3].ri-6}" fill="var(--paper)" stroke="var(--g300)" stroke-width="1.5"/><text class="clock-hub-label" x="${CX}" y="${CY-7}">7AM–7PM</text><text class="clock-hub-label" x="${CX}" y="${CY+8}">SCHEDULE</text>`;
+  document.getElementById('clock-face').innerHTML=`<svg width="${SZ}" height="${SZ}" viewBox="0 0 ${SZ} ${SZ}">${ringBg}${segs}${ticks}${hub}</svg>`;
+}
 function renderTimeline(){const tasks=deriveTasks();const hours=['7AM','8AM','9AM','10AM','11AM','12PM','1PM','2PM','3PM','4PM','5PM','6PM','7PM'];const chefs=['SOUS','STATION','JUNIOR','TRAINEE'];document.getElementById('timeline').innerHTML=`<div class="timeline-header">${hours.map(hour=>`<div class="timeline-hour">${hour}</div>`).join('')}</div>${chefs.map(chef=>`<div><strong>${chef}</strong><div class="timeline-bars">${tasks.filter(task=>task.chef===chef).map(task=>{const parts=task.startTime.split(':');const left=((parseInt(parts[0])-7)*60)+parseInt(parts[1]);const width=task.duration*4;return `<div class="bar" style="left:${left}px;width:${width}px" onclick="showTask('${task.title}','${task.process}','${task.startTime}','${task.duration}','${task.chef}')"><strong>${task.title}</strong><br>${task.startTime} • ${task.duration}m</div>`;}).join('')}</div></div>`).join('')}`;}
 function toggleYTPill(){document.getElementById('yt-pill').classList.toggle('active');}
 function sendChatMessage(){const ta=document.getElementById('chat-textarea');const text=ta.value.trim();if(!text)return;const msgs=document.getElementById('chat-messages-list');const userMsg=document.createElement('div');userMsg.className='chat-message user';userMsg.textContent=text;msgs.appendChild(userMsg);ta.value='';const isYT=/youtube\.com|youtu\.be/i.test(text);if(isYT){const aiCard=document.createElement('div');aiCard.className='chat-yt-suggest';aiCard.innerHTML='<div class="yt-title">▶ Detected: YouTube Recipe Link</div><div class="small">Generate a workflow from this video?</div><button class="btn primary" style="width:100%;margin-top:8px" onclick="generateFromYT(this)">Generate Workflow</button>';msgs.appendChild(aiCard);}else{const aiMsg=document.createElement('div');aiMsg.className='chat-message';aiMsg.textContent='Got it! I\'ll update the workflow accordingly.';msgs.appendChild(aiMsg);}msgs.scrollTop=msgs.scrollHeight;}
