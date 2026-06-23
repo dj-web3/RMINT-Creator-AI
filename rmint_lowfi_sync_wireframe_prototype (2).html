@@ -108,6 +108,11 @@
     .chat-yt-suggest .yt-title { font-family:var(--serif); font-size:13px; font-weight:500; margin-bottom:6px; color:var(--slate); }
     .chat-yt-suggest .small { margin-bottom:10px; }
     .chat-yt-suggest.disabled { opacity:.5; pointer-events:none; }
+    .chat-message.loading { color:var(--g500); font-style:italic; display:flex; align-items:center; gap:8px; }
+    .chat-message.loading::before { content:''; width:12px; height:12px; border:2px solid var(--g300); border-top-color:var(--clay); border-radius:50%; animation:spin .7s linear infinite; flex-shrink:0; }
+    .chat-message.loading .dots::after { content:''; animation:dots 1.2s steps(4,end) infinite; }
+    @keyframes spin { to { transform:rotate(360deg); } }
+    @keyframes dots { 0%{content:'';} 25%{content:'.';} 50%{content:'..';} 75%{content:'...';} 100%{content:'';} }
     .guide-card-thumb { background:var(--g100); border-radius:8px; height:110px; display:flex; align-items:center; justify-content:center; margin-bottom:10px; border:1.5px solid var(--g200); }
     .guide-thumb-icon { font-size:32px; color:var(--g300); line-height:1; }
     .guide-layout { display:grid; grid-template-columns:1fr; gap:16px; }
@@ -223,7 +228,7 @@
   
   <div class="header">
     <div style="display:flex; align-items:center; gap:12px">
-      <strong>Chicken Biryani</strong>
+      <strong id="dish-title">Chicken Biryani</strong>
       <button class="btn" onclick="openIngredientsModal()">Ingredients</button>
       <button class="btn">Edit</button>
     </div>
@@ -465,8 +470,85 @@ function renderClockView(){
 }
 function renderTimeline(){const tasks=deriveTasks();const hours=['7AM','8AM','9AM','10AM','11AM','12PM','1PM','2PM','3PM','4PM','5PM','6PM','7PM'];const chefs=['SOUS','STATION','JUNIOR','TRAINEE'];document.getElementById('timeline').innerHTML=`<div class="timeline-header">${hours.map(hour=>`<div class="timeline-hour">${hour}</div>`).join('')}</div>${chefs.map(chef=>`<div><strong>${chef}</strong><div class="timeline-bars">${tasks.filter(task=>task.chef===chef).map(task=>{const parts=task.startTime.split(':');const left=((parseInt(parts[0])-7)*60)+parseInt(parts[1]);const width=task.duration*4;return `<div class="bar" style="left:${left}px;width:${width}px" onclick="showTask('${task.title}','${task.process}','${task.startTime}','${task.duration}','${task.chef}')"><strong>${task.title}</strong><br>${task.startTime} • ${task.duration}m</div>`;}).join('')}</div></div>`).join('')}`;}
 function toggleYTPill(){document.getElementById('yt-pill').classList.toggle('active');}
-function sendChatMessage(){const ta=document.getElementById('chat-textarea');const text=ta.value.trim();if(!text)return;const msgs=document.getElementById('chat-messages-list');const userMsg=document.createElement('div');userMsg.className='chat-message user';userMsg.textContent=text;msgs.appendChild(userMsg);ta.value='';const isYT=/youtube\.com|youtu\.be/i.test(text);if(isYT){const aiCard=document.createElement('div');aiCard.className='chat-yt-suggest';aiCard.innerHTML='<div class="yt-title">▶ Detected: YouTube Recipe Link</div><div class="small">Generate a workflow from this video?</div><button class="btn primary" style="width:100%;margin-top:8px" onclick="generateFromYT(this)">Generate Workflow</button>';msgs.appendChild(aiCard);}else{const aiMsg=document.createElement('div');aiMsg.className='chat-message';aiMsg.textContent='Got it! I\'ll update the workflow accordingly.';msgs.appendChild(aiMsg);}msgs.scrollTop=msgs.scrollHeight;}
-function generateFromYT(btn){const card=btn.closest('.chat-yt-suggest');card.classList.add('disabled');const msgs=document.getElementById('chat-messages-list');const successMsg=document.createElement('div');successMsg.className='chat-message';successMsg.innerHTML='✓ Workflow generated successfully and synced to the canvas.';msgs.appendChild(successMsg);msgs.scrollTop=msgs.scrollHeight;}
+/* ===== Recipe Engine ===== */
+const GENERIC_QTY={'Aromatics':'50g','Cooking Oil':'30ml','Salt':'to taste','Onion':'200g','Garlic':'20g','Ginger':'15g','Main Ingredient':'600g','Spice Blend':'30g','Stock':'500ml','Seasoning':'to taste','Fresh Herbs':'20g','Garnish':'10g'};
+const RECIPE_LIBRARY={
+  'chicken biryani':{dish:'Chicken Biryani',ingredients:[{name:'Chicken',quantity:'800g'},{name:'Yogurt',quantity:'200g'},{name:'Basmati Rice',quantity:'1kg'},{name:'Onions',quantity:'300g'},{name:'Biryani Spices',quantity:'60g'},{name:'Saffron',quantity:'1g'},{name:'Ghee',quantity:'100g'},{name:'Mint',quantity:'30g'}],steps:[
+    {title:'Chicken Marination',process:'Marinating',duration:'45m',startTime:'07:00',ingredients:['Chicken','Yogurt','Biryani Spices'],chefs:['SOUS','STATION']},
+    {title:'Fry Onions (Birista)',process:'Frying',duration:'25m',startTime:'07:15',ingredients:['Onions','Ghee'],chefs:['JUNIOR']},
+    {title:'Par-boil Basmati Rice',process:'Boiling',duration:'20m',startTime:'07:50',ingredients:['Basmati Rice'],chefs:['STATION']},
+    {title:'Layer & Dum Cook',process:'Steaming',duration:'40m',startTime:'08:15',ingredients:['Chicken','Basmati Rice','Saffron','Mint'],chefs:['SOUS']},
+    {title:'Rest & Serve',process:'Plating',duration:'15m',startTime:'08:55',ingredients:['Mint'],chefs:['TRAINEE']}]},
+  'butter chicken':{dish:'Butter Chicken',ingredients:[{name:'Chicken Thighs',quantity:'700g'},{name:'Yogurt',quantity:'150g'},{name:'Tomatoes',quantity:'500g'},{name:'Butter',quantity:'80g'},{name:'Cream',quantity:'150ml'},{name:'Garam Masala',quantity:'20g'},{name:'Garlic-Ginger Paste',quantity:'40g'},{name:'Kasuri Methi',quantity:'5g'}],steps:[
+    {title:'Marinate Chicken',process:'Marinating',duration:'40m',startTime:'07:00',ingredients:['Chicken Thighs','Yogurt','Garam Masala'],chefs:['SOUS']},
+    {title:'Char the Chicken',process:'Grilling',duration:'20m',startTime:'07:40',ingredients:['Chicken Thighs','Butter'],chefs:['STATION']},
+    {title:'Simmer Tomato Gravy',process:'Simmering',duration:'30m',startTime:'07:45',ingredients:['Tomatoes','Garlic-Ginger Paste'],chefs:['JUNIOR']},
+    {title:'Blend & Enrich Sauce',process:'Blending',duration:'15m',startTime:'08:15',ingredients:['Butter','Cream','Kasuri Methi'],chefs:['JUNIOR']},
+    {title:'Combine & Finish',process:'Combining',duration:'20m',startTime:'08:30',ingredients:['Chicken Thighs','Cream'],chefs:['SOUS']},
+    {title:'Plate & Garnish',process:'Plating',duration:'10m',startTime:'08:50',ingredients:['Cream','Kasuri Methi'],chefs:['TRAINEE']}]},
+  'margherita pizza':{dish:'Margherita Pizza',ingredients:[{name:'Pizza Dough',quantity:'500g'},{name:'San Marzano Tomatoes',quantity:'400g'},{name:'Fresh Mozzarella',quantity:'250g'},{name:'Basil',quantity:'20g'},{name:'Olive Oil',quantity:'40ml'},{name:'Sea Salt',quantity:'10g'},{name:'Semolina',quantity:'50g'}],steps:[
+    {title:'Proof the Dough',process:'Proofing',duration:'90m',startTime:'07:00',ingredients:['Pizza Dough'],chefs:['SOUS']},
+    {title:'Prepare Tomato Sauce',process:'Blending',duration:'15m',startTime:'07:30',ingredients:['San Marzano Tomatoes','Sea Salt','Olive Oil'],chefs:['JUNIOR']},
+    {title:'Stretch & Shape Base',process:'Shaping',duration:'15m',startTime:'08:30',ingredients:['Pizza Dough','Semolina'],chefs:['STATION']},
+    {title:'Top the Pizza',process:'Assembling',duration:'10m',startTime:'08:45',ingredients:['San Marzano Tomatoes','Fresh Mozzarella','Basil'],chefs:['STATION']},
+    {title:'Bake in Oven',process:'Baking',duration:'12m',startTime:'08:55',ingredients:['Olive Oil'],chefs:['SOUS']},
+    {title:'Finish & Slice',process:'Plating',duration:'5m',startTime:'09:07',ingredients:['Basil','Olive Oil'],chefs:['TRAINEE']}]}};
+const RECIPE_ALIASES={'biryani':'chicken biryani','chicken biryani':'chicken biryani','butter chicken':'butter chicken','murgh makhani':'butter chicken','makhani':'butter chicken','margherita':'margherita pizza','margherita pizza':'margherita pizza','pizza':'margherita pizza'};
+const pad2=n=>String(n).padStart(2,'0');
+function titleCase(s){return s.replace(/\w\S*/g,w=>w.charAt(0).toUpperCase()+w.slice(1).toLowerCase());}
+function cloneRecipe(r){return JSON.parse(JSON.stringify(r));}
+function matchLibrary(input){const t=input.toLowerCase();let best=null,bestLen=0;for(const k in RECIPE_ALIASES){if(t.includes(k)&&k.length>bestLen){best=RECIPE_ALIASES[k];bestLen=k.length;}}return best?RECIPE_LIBRARY[best]:null;}
+const DISH_STOPWORDS=new Set(['that','which','my','from','and','with','for','the','a','an','to','in','on','at','by','of','today','we','are','is','this','recipe','video','was','were','it','its','will','can','you','your','our']);
+function cleanDishPhrase(p){const words=p.trim().split(/\s+/);const kept=[];for(const w of words){const lw=w.toLowerCase().replace(/[^a-z'&-]/g,'');if(!lw)continue;if(DISH_STOPWORDS.has(lw)){if(kept.length)break;else continue;}kept.push(w.replace(/[^a-zA-Z'&-]/g,''));if(kept.length>=4)break;}return kept.join(' ').trim();}
+function extractDishName(input){let t=input.replace(/https?:\/\/\S+/g,' ').replace(/#\w+/g,' ').trim();let m=t.match(/(?:recipe for|how to make|how to cook|make a|make|cook|prepare)\s+([a-z][a-z\s'&-]{2,60})/i);if(m){const c=cleanDishPhrase(m[1]);if(c)return titleCase(c);}m=t.match(/([a-z][a-z\s'&-]{2,60})\s+recipe/i);if(m){const c=cleanDishPhrase(m[1]);if(c)return titleCase(c);}const words=t.split(/\s+/).filter(Boolean);if(words.length>0&&words.length<=6)return titleCase(t);return null;}
+function assignTimes(steps,start){let[h,m]=start.split(':').map(Number);for(const s of steps){if(!s.startTime)s.startTime=pad2(h)+':'+pad2(m);m+=parseInt(s.duration,10)||0;h+=Math.floor(m/60);m=m%60;}}
+function collectIngredients(steps){const seen={},out=[];steps.forEach(s=>s.ingredients.forEach(n=>{if(!seen[n]){seen[n]=1;out.push({name:n,quantity:GENERIC_QTY[n]||'as needed'});}}));return out;}
+function synthesizeRecipe(name){const steps=[
+    {title:'Mise en Place',process:'Prep',duration:'20m',ingredients:['Aromatics','Cooking Oil','Salt'],chefs:['SOUS']},
+    {title:'Build the Flavor Base',process:'Sautéing',duration:'25m',ingredients:['Onion','Garlic','Ginger'],chefs:['STATION']},
+    {title:'Cook '+name,process:'Cooking',duration:'40m',ingredients:['Main Ingredient','Spice Blend'],chefs:['SOUS','STATION']},
+    {title:'Simmer & Combine',process:'Simmering',duration:'30m',ingredients:['Stock','Seasoning'],chefs:['JUNIOR']},
+    {title:'Plate & Garnish',process:'Plating',duration:'15m',ingredients:['Fresh Herbs','Garnish'],chefs:['TRAINEE']}];
+  assignTimes(steps,'07:00');return {dish:name,ingredients:collectIngredients(steps),steps};}
+function buildRecipe(input){const lib=matchLibrary(input);if(lib)return cloneRecipe(lib);const name=extractDishName(input);if(name)return synthesizeRecipe(name);return cloneRecipe(RECIPE_LIBRARY['butter chicken']);}
+function applyRecipe(r){
+  appState.sharedDish.ingredients=r.ingredients.slice();
+  const steps=r.steps.map((s,i)=>({id:String(Date.now()+i),title:s.title,process:s.process,duration:s.duration,startTime:s.startTime,ingredients:s.ingredients.slice(),chefs:s.chefs.slice(),x:200+(i%4)*250,y:200+Math.floor(i/4)*190}));
+  appState.sharedDish.methodology=steps;
+  const lastRow=Math.floor((steps.length-1)/4);
+  appState.sharedDish.flowNodes=[{id:'_start',type:'start',label:'Start',x:60,y:224},{id:'_end',type:'end',label:'End',x:200+4*250,y:200+lastRow*190+24}];
+  const conns=[{from:'_start',to:steps[0].id}];for(let i=0;i<steps.length-1;i++)conns.push({from:steps[i].id,to:steps[i+1].id});conns.push({from:steps[steps.length-1].id,to:'_end'});
+  appState.sharedDish.connections=conns;
+  const dt=document.getElementById('dish-title');if(dt)dt.textContent=r.dish;
+  sync();
+}
+/* ===== Chat wiring ===== */
+function appendChat(el){const m=document.getElementById('chat-messages-list');m.appendChild(el);m.scrollTop=m.scrollHeight;}
+function addChatMsg(text,cls){const d=document.createElement('div');d.className='chat-message'+(cls?' '+cls:'');d.textContent=text;appendChat(d);}
+function switchToMenu(){const b=document.querySelector('.nav-btn[data-view="menu-view"]');if(b)b.click();}
+function sendChatMessage(){
+  const ta=document.getElementById('chat-textarea');const text=ta.value.trim();if(!text)return;
+  addChatMsg(text,'user');ta.value='';
+  const isYT=/youtube\.com|youtu\.be/i.test(text);
+  if(isYT){
+    const card=document.createElement('div');card.className='chat-yt-suggest';
+    card.innerHTML='<div class="yt-title">▶ Detected: YouTube Recipe Link</div><div class="small">Pull the recipe from this video and build the workflow?</div><button class="btn primary gen-btn" style="width:100%;margin-top:8px">Generate Workflow</button>';
+    card.querySelector('.gen-btn').addEventListener('click',()=>generateWorkflow(card,text));
+    appendChat(card);
+  } else {
+    generateWorkflow(null,text);
+  }
+}
+function generateWorkflow(triggerCard,text){
+  if(triggerCard)triggerCard.classList.add('disabled');
+  const loading=document.createElement('div');loading.className='chat-message loading';loading.innerHTML='<span class="dots">Building recipe workflow</span>';appendChat(loading);
+  setTimeout(()=>{
+    const recipe=buildRecipe(text);applyRecipe(recipe);loading.remove();
+    const done=document.createElement('div');done.className='chat-message';
+    done.innerHTML='✓ Built a '+recipe.steps.length+'-step workflow for <strong>'+recipe.dish+'</strong>.<br><span class="small">Synced to Canvas, Timeline, Clock &amp; Guide.</span>';
+    appendChat(done);switchToMenu();
+  },1400);
+}
 function toggleAccordion(){const body=document.getElementById('accordion-body');const chevron=document.getElementById('accordion-chevron');const collapsed=body.classList.toggle('collapsed');chevron.style.transform=collapsed?'':'rotate(180deg)';}
 function openIngredientsModal(){document.getElementById('ingredients-modal').style.display='flex';}
 function closeIngredientsModal(){document.getElementById('ingredients-modal').style.display='none';}
