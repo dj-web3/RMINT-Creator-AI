@@ -1,0 +1,1169 @@
+# RMINT — Low-Fi Prototype: Full Build Spec
+
+Give this entire document to any LLM with the instruction: **"Build this as a single self-contained `index.html` file — inline `<style>` and inline `<script>`, no external libraries, no build step, no frameworks."** Following it top to bottom reproduces the current app exactly.
+
+---
+
+## 1. What This App Is
+
+RMINT is a kitchen/recipe workflow tool. A single dish ("shared dish") has:
+- A list of **ingredients** (name + quantity)
+- A list of **methodology steps** (recipe steps), each with title, process, duration, start time, ingredients used, and assigned chefs
+
+Five views, switchable from a left icon sidebar:
+
+| View | Purpose |
+|---|---|
+| **Create Menu** (default) | Visual flowchart canvas to build/edit the recipe's steps and their order |
+| **Create Guide** | Read-only card view of every step, video-thumbnail style |
+| **Create Plan** | Scheduling view — Timeline (Gantt-style bars per chef) or Clock (radial schedule per chef) |
+| **Discovery** | Placeholder |
+| **Pairing** | Placeholder |
+
+A **chat panel** on the left (separate from the sidebar) lets the user type a dish name, a recipe description, or a YouTube link. The app then **generates an entire recipe workflow** (ingredients + steps with all parameters) and populates every view simultaneously.
+
+Everything is driven by one in-memory JS object, `appState`. Every view's render function reads from it; there is no other source of truth.
+
+---
+
+## 2. Design System
+
+### 2.1 Color tokens (CSS custom properties on `:root`)
+
+```css
+:root {
+  --ivory: #FAF9F5;   /* page/canvas background */
+  --paper: #FFFFFF;   /* card/panel background */
+  --slate: #141413;   /* primary text, active dark states */
+  --clay:  #D97757;   /* primary accent — active nav, primary buttons, End node */
+  --clay-d:#B85C3E;   /* clay hover/darker */
+  --oat:   #E3DACC;   /* warm secondary tint (hover backgrounds) */
+  --olive: #788C5D;   /* secondary accent — chef active state, Start node */
+  --g100:  #F0EEE6;   /* lightest gray fill */
+  --g200:  #E6E3DA;   /* light gray border */
+  --g300:  #D1CFC5;   /* default border gray */
+  --g500:  #87867F;   /* muted text gray */
+  --g700:  #3D3D3A;   /* darker secondary text */
+}
+```
+
+### 2.2 Typography (three-font stack, also as custom properties)
+
+```css
+--serif: ui-serif, Georgia, "Times New Roman", Times, serif;   /* headings, card titles, node titles */
+--sans:  system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; /* body text, inputs */
+--mono:  ui-monospace, "SF Mono", Menlo, Monaco, Consolas, monospace; /* labels, badges, time values, nav tooltips */
+```
+
+Global reset:
+```css
+* { box-sizing:border-box; margin:0; padding:0; font-family:var(--sans); }
+html { scroll-behavior:smooth; }
+body { display:flex; height:100vh; overflow:hidden; background:var(--ivory); color:var(--slate); line-height:1.55; -webkit-font-smoothing:antialiased; }
+```
+
+### 2.3 Shared component primitives
+
+```css
+.panel { border:1.5px solid var(--g300); padding:12px; background:var(--paper); border-radius:14px; }
+.panel h3 { font-family:var(--serif); font-weight:500; font-size:17px; margin-bottom:10px; letter-spacing:-.01em; }
+
+.nav-btn,.flow-btn,.btn,.chef-btn { border:1.5px solid var(--g300); background:var(--paper); cursor:pointer; transition:border-color 150ms,color 150ms,background 150ms,transform 150ms; }
+.btn,.flow-btn { padding:10px 14px; border-radius:999px; font-family:var(--mono); font-size:12px; letter-spacing:.02em; }
+.btn:hover,.flow-btn:hover { border-color:var(--slate); color:var(--slate); }
+.btn.primary,.flow-btn.active { background:var(--clay); color:white; border-color:var(--clay); }
+.btn.primary:hover { background:var(--clay-d); border-color:var(--clay-d); }
+
+.chef-btn { border-radius:999px; font-family:var(--mono); font-size:11px; padding:4px 10px; letter-spacing:.04em; }
+.chef-btn.active { background:var(--olive); color:white; border-color:var(--olive); }
+
+input, textarea { width:100%; border:1.5px solid var(--g300); padding:8px; margin-top:4px; margin-bottom:10px; border-radius:8px; font-family:var(--sans); font-size:13px; background:var(--paper); transition:border-color 150ms; }
+input:focus, textarea:focus { outline:none; border-color:var(--clay); }
+label { font-family:var(--mono); font-size:11px; text-transform:uppercase; letter-spacing:.08em; color:var(--g500); }
+
+.small { font-size:12px; color:var(--g700); }
+.placeholder { border:1.5px dashed var(--g300); padding:40px; text-align:center; border-radius:14px; color:var(--g500); font-family:var(--mono); font-size:13px; }
+```
+
+Generic card hover lift (used by step cards, guide cards, clock cards):
+```css
+.method-step,.guide-card,.clock-card,.ingredient-item { border:1.5px solid var(--g300); padding:10px; margin-bottom:10px; border-radius:12px; background:var(--paper); transition:transform 150ms,box-shadow 150ms,border-color 150ms; position:relative; }
+.method-step:hover,.guide-card:hover,.clock-card:hover { transform:translateY(-2px); box-shadow:0 6px 20px rgba(20,20,19,.08); border-color:var(--g500); }
+```
+
+---
+
+## 3. Page Shell Layout
+
+```
+body (flex row)
+├── .sidebar            (72px, icon nav, fixed)
+└── .workspace-shell    (flex row, fills rest)
+    ├── .chat-panel     (320px, fixed)
+    └── .main           (flex:1)
+        ├── .header     (dish title + actions)
+        └── .content    (scrollable; holds all 5 .view blocks)
+```
+
+### 3.1 Sidebar
+
+```html
+<div class="sidebar">
+  <h2 style="font-size:18px">◎</h2>
+  <div class="nav-group">Create</div>
+  <div class="nav-item">
+    <button class="nav-btn active" data-view="menu-view">⌘</button>
+    <div class="tooltip">Create Menu</div>
+  </div>
+  <div class="nav-item">
+    <button class="nav-btn" data-view="guide-view">▣</button>
+    <div class="tooltip">Create Guide</div>
+  </div>
+  <div class="nav-item">
+    <button class="nav-btn" data-view="plan-view">◷</button>
+    <div class="tooltip">Create Plan</div>
+  </div>
+  <div class="nav-group">Discover</div>
+  <div class="nav-item">
+    <button class="nav-btn" data-main="discovery">⌕</button>
+    <div class="tooltip">Discovery</div>
+  </div>
+  <div class="nav-item">
+    <button class="nav-btn" data-main="pairing">◎</button>
+    <div class="tooltip">Pairing</div>
+  </div>
+</div>
+```
+
+```css
+.sidebar { width:72px; border-right:1.5px solid var(--g300); padding:16px 8px; display:flex; flex-direction:column; align-items:center; gap:10px; background:var(--paper); }
+.nav-item { position:relative; width:100%; display:flex; justify-content:center; }
+.tooltip { position:absolute; left:56px; top:50%; transform:translateY(-50%); background:var(--slate); color:white; padding:6px 10px; font-size:12px; font-family:var(--mono); white-space:nowrap; display:none; z-index:100; border-radius:6px; }
+.nav-item:hover .tooltip { display:block; }
+.nav-group { margin-top:12px; font-size:10px; font-weight:bold; color:var(--g500); text-transform:uppercase; letter-spacing:.08em; font-family:var(--mono); writing-mode:vertical-rl; transform:rotate(180deg); }
+.nav-btn { width:44px; height:44px; padding:0; display:flex; align-items:center; justify-content:center; text-align:center; font-size:16px; border-radius:10px; }
+.nav-btn:hover { border-color:var(--slate); }
+.nav-btn.active { background:var(--clay); color:white; border-color:var(--clay); }
+```
+
+**Behavior:** clicking a `[data-view]` button deactivates all nav buttons + all `.view`s, activates the clicked button and its `#<data-view>` view. `[data-main]` buttons (Discovery, Pairing) do the same but target `#discovery-view` / `#pairing-view`.
+
+```js
+document.querySelectorAll('.nav-btn[data-view]').forEach(button=>{
+  button.addEventListener('click',()=>{
+    document.querySelectorAll('.nav-btn[data-view]').forEach(btn=>btn.classList.remove('active'));
+    button.classList.add('active');
+    document.querySelectorAll('.view').forEach(view=>view.classList.remove('active'));
+    document.getElementById(button.dataset.view).classList.add('active');
+  });
+});
+document.querySelectorAll('.nav-btn[data-main]').forEach(button=>{
+  button.addEventListener('click',()=>{
+    document.querySelectorAll('.nav-btn').forEach(btn=>btn.classList.remove('active'));
+    button.classList.add('active');
+    document.querySelectorAll('.view').forEach(view=>view.classList.remove('active'));
+    const section=button.dataset.main;
+    if(section==='discovery'){document.getElementById('discovery-view').classList.add('active');}
+    if(section==='pairing'){document.getElementById('pairing-view').classList.add('active');}
+  });
+});
+```
+
+```css
+.view { display:none; }
+.view.active { display:block; }
+```
+
+### 3.2 Header (above `.content`, inside `.main`)
+
+```html
+<div class="header">
+  <div style="display:flex; align-items:center; gap:12px">
+    <strong id="dish-title">Chicken Biryani</strong>
+    <button class="btn" onclick="openIngredientsModal()">Ingredients</button>
+    <button class="btn">Edit</button>
+  </div>
+  <div class="small">Low-Fi Functional Sync Prototype</div>
+</div>
+```
+
+```css
+.header { border-bottom:1.5px solid var(--g200); padding:14px 16px; display:flex; justify-content:space-between; align-items:center; background:var(--paper); }
+.header strong { font-family:var(--serif); font-size:18px; font-weight:500; }
+.content { flex:1; overflow:auto; padding:16px; }
+```
+
+`#dish-title` is updated by the recipe engine whenever a new workflow is generated (§7).
+
+---
+
+## 4. Chat Panel (left, 320px)
+
+```html
+<div class="chat-panel">
+  <div class="chat-header">RMINT AI</div>
+  <div class="chat-messages" id="chat-messages-list">
+    <div class="chat-message">Workflow generated for Chicken Biryani.</div>
+    <div class="chat-message user">Split marination into prep and resting stages.</div>
+    <div class="chat-message">Updated methodology and synced timeline dependencies.</div>
+  </div>
+  <div class="chat-input">
+    <div class="chat-pills">
+      <button class="chat-pill" id="yt-pill" onclick="toggleYTPill()"><span class="yt-icon">▶</span> YouTube</button>
+    </div>
+    <div class="chat-send-row">
+      <textarea id="chat-textarea" placeholder="Ask RMINT AI..."></textarea>
+      <button class="btn primary chat-send-btn" onclick="sendChatMessage()">↑</button>
+    </div>
+  </div>
+</div>
+```
+
+```css
+.chat-panel { width:320px; border-right:1.5px solid var(--g200); display:flex; flex-direction:column; background:var(--paper); }
+.chat-header { padding:14px; border-bottom:1.5px solid var(--g200); font-weight:600; font-family:var(--serif); font-size:15px; }
+.chat-messages { flex:1; overflow:auto; padding:14px; display:flex; flex-direction:column; gap:12px; }
+.chat-message { border:1.5px solid var(--g300); padding:10px; max-width:90%; font-size:12px; border-radius:10px; line-height:1.5; }
+.chat-message.user { align-self:flex-end; background:var(--slate); color:white; border-color:var(--slate); }
+.chat-input { border-top:1.5px solid var(--g200); padding:12px; }
+.chat-pills { display:flex; gap:6px; margin-bottom:8px; }
+.chat-pill { display:inline-flex; align-items:center; gap:5px; padding:5px 10px; border:1.5px solid var(--g300); border-radius:999px; font-family:var(--mono); font-size:11px; cursor:pointer; background:var(--paper); color:var(--g700); transition:border-color 150ms,background 150ms,color 150ms; }
+.chat-pill:hover { border-color:var(--clay); color:var(--clay); }
+.chat-pill.active { border-color:var(--clay); background:var(--clay); color:white; }
+.chat-pill.active .yt-icon { color:white; }
+.chat-pill .yt-icon { color:#FF0000; font-size:13px; }
+.chat-send-row { display:flex; gap:8px; align-items:flex-end; margin-top:8px; }
+.chat-send-row textarea { flex:1; height:70px; resize:none; margin:0; }
+.chat-send-btn { padding:8px 14px; flex-shrink:0; align-self:flex-end; }
+.chat-yt-suggest { border:1.5px solid var(--clay); border-radius:12px; padding:12px; background:var(--g100); max-width:95%; }
+.chat-yt-suggest .yt-title { font-family:var(--serif); font-size:13px; font-weight:500; margin-bottom:6px; color:var(--slate); }
+.chat-yt-suggest .small { margin-bottom:10px; }
+.chat-yt-suggest.disabled { opacity:.5; pointer-events:none; }
+.chat-message.loading { color:var(--g500); font-style:italic; display:flex; align-items:center; gap:8px; }
+.chat-message.loading::before { content:''; width:12px; height:12px; border:2px solid var(--g300); border-top-color:var(--clay); border-radius:50%; animation:spin .7s linear infinite; flex-shrink:0; }
+.chat-message.loading .dots::after { content:''; animation:dots 1.2s steps(4,end) infinite; }
+@keyframes spin { to { transform:rotate(360deg); } }
+@keyframes dots { 0%{content:'';} 25%{content:'.';} 50%{content:'..';} 75%{content:'...';} 100%{content:'';} }
+```
+
+### 4.1 Chat behavior
+
+`sendChatMessage()` — on click of the ↑ button:
+1. Read `#chat-textarea`, trim, bail if empty.
+2. Append it as a `.chat-message.user` bubble. Clear the textarea.
+3. If text matches `/youtube\.com|youtu\.be/i` → append a `.chat-yt-suggest` card ("Detected: YouTube Recipe Link" + "Generate Workflow" button). Clicking that button calls `generateWorkflow(card, text)`.
+4. Otherwise → call `generateWorkflow(null, text)` directly (no confirmation needed for plain text).
+
+`generateWorkflow(triggerCard, text)`:
+1. If there's a trigger card (the YT suggestion), disable it (`.disabled` — fades + blocks clicks).
+2. Append a `.chat-message.loading` bubble with text "Building recipe workflow" (CSS spinner + animated `...` via the `.dots` class).
+3. After a **1400ms `setTimeout`** (simulates processing time):
+   - Call `buildRecipe(text)` → get a recipe object `{dish, ingredients, steps}` (§7).
+   - Call `applyRecipe(recipe)` → writes it into `appState` and re-renders everything.
+   - Remove the loading bubble.
+   - Append a success bubble: `✓ Built a N-step workflow for <b>Dish</b>.` + small note "Synced to Canvas, Timeline, Clock & Guide."
+   - Switch the active view to Create Menu (`switchToMenu()` — clicks the `menu-view` nav button) so the user immediately sees the new flowchart.
+
+```js
+function appendChat(el){const m=document.getElementById('chat-messages-list');m.appendChild(el);m.scrollTop=m.scrollHeight;}
+function addChatMsg(text,cls){const d=document.createElement('div');d.className='chat-message'+(cls?' '+cls:'');d.textContent=text;appendChat(d);}
+function switchToMenu(){const b=document.querySelector('.nav-btn[data-view="menu-view"]');if(b)b.click();}
+
+function sendChatMessage(){
+  const ta=document.getElementById('chat-textarea');const text=ta.value.trim();if(!text)return;
+  addChatMsg(text,'user');ta.value='';
+  const isYT=/youtube\.com|youtu\.be/i.test(text);
+  if(isYT){
+    const card=document.createElement('div');card.className='chat-yt-suggest';
+    card.innerHTML='<div class="yt-title">▶ Detected: YouTube Recipe Link</div><div class="small">Pull the recipe from this video and build the workflow?</div><button class="btn primary gen-btn" style="width:100%;margin-top:8px">Generate Workflow</button>';
+    card.querySelector('.gen-btn').addEventListener('click',()=>generateWorkflow(card,text));
+    appendChat(card);
+  } else {
+    generateWorkflow(null,text);
+  }
+}
+
+function generateWorkflow(triggerCard,text){
+  if(triggerCard)triggerCard.classList.add('disabled');
+  const loading=document.createElement('div');loading.className='chat-message loading';
+  loading.innerHTML='<span class="dots">Building recipe workflow</span>';appendChat(loading);
+  setTimeout(()=>{
+    const recipe=buildRecipe(text);applyRecipe(recipe);loading.remove();
+    const done=document.createElement('div');done.className='chat-message';
+    done.innerHTML='✓ Built a '+recipe.steps.length+'-step workflow for <strong>'+recipe.dish+'</strong>.<br><span class="small">Synced to Canvas, Timeline, Clock &amp; Guide.</span>';
+    appendChat(done);switchToMenu();
+  },1400);
+}
+
+function toggleYTPill(){document.getElementById('yt-pill').classList.toggle('active');}
+```
+
+`toggleYTPill` just toggles the `.active` class on the pill button — cosmetic only, no other wiring (the pill is decorative; YouTube detection happens purely off the message text regex).
+
+---
+
+## 5. Data Model — `appState`
+
+This single object is the entire app's state. Every render function reads from it; every mutation calls `sync()` (full re-render) or a narrower re-render when only one view changed.
+
+```js
+const appState = {
+  selectedPlanStep: null,
+  editingNodeId: null,         // id of the node currently open in the edit modal, or null
+  sharedDish: {
+    ingredients: [
+      { name: 'Chicken', quantity: '800g' },
+      { name: 'Yogurt',  quantity: '200g' },
+      { name: 'Rice',    quantity: '1kg' },
+      { name: 'Spices',  quantity: '120g' }
+    ],
+    methodology: [   // the recipe steps — THE core editable list
+      { id:'1', title:'Chicken Marination', chefs:['SOUS','STATION'], ingredients:['Chicken','Yogurt'],
+        duration:'45m', startTime:'07:00', process:'Marinating', x:220, y:240 },
+      { id:'2', title:'Rice Preparation',   chefs:['JUNIOR'],          ingredients:['Rice','Spices'],
+        duration:'30m', startTime:'08:00', process:'Boiling',    x:470, y:240 },
+      { id:'3', title:'Final Assembly',     chefs:['TRAINEE'],         ingredients:['Chicken','Rice'],
+        duration:'20m', startTime:'09:00', process:'Combining',  x:720, y:240 }
+    ],
+    flowNodes: [      // visual-only sentinel nodes — never appear in timeline/guide/clock
+      { id:'_start', type:'start', label:'Start', x:60,  y:264 },
+      { id:'_end',   type:'end',   label:'End',   x:980, y:264 }
+    ],
+    connections: [    // directed edges for the flowchart canvas
+      { from:'_start', to:'1' },
+      { from:'1',      to:'2' },
+      { from:'2',      to:'3' },
+      { from:'3',      to:'_end' }
+    ]
+  }
+};
+```
+
+### 5.1 The 6 parameters of a methodology step
+
+Every recipe step (whether seeded, hand-built in the library, or generated) carries exactly these 6 fields, plus an `id` and canvas `x`/`y`:
+
+| Field | Type | Example | Notes |
+|---|---|---|---|
+| `title` | string | `"Chicken Marination"` | Step name |
+| `process` | string | `"Marinating"` | The cooking technique/verb |
+| `duration` | string | `"45m"` | Free text but always `<number>m` in practice; parsed with `parseInt` |
+| `startTime` | string | `"07:00"` | 24h `HH:MM` |
+| `ingredients` | string[] | `['Chicken','Yogurt']` | Subset of names from `sharedDish.ingredients` |
+| `chefs` | string[] | `['SOUS','STATION']` | Subset of `['SOUS','STATION','JUNIOR','TRAINEE']` |
+
+### 5.2 Derived tasks
+
+Many views (Timeline, Clock) need one row **per chef per step** (a step with 2 chefs becomes 2 tasks). This is computed on demand, never stored:
+
+```js
+function deriveTasks(){
+  const tasks=[];
+  appState.sharedDish.methodology.forEach(step=>{
+    step.chefs.forEach(chef=>{
+      tasks.push({title:step.title,chef,startTime:step.startTime,duration:parseInt(step.duration,10),process:step.process,ingredients:step.ingredients});
+    });
+  });
+  return tasks;
+}
+```
+
+### 5.3 The global `sync()`
+
+Call this after any mutation that should ripple to every view:
+
+```js
+function sync(){
+  renderIngredients();
+  renderCanvas();
+  renderMethodology();   // no-op placeholder, kept for symmetry — see §6.1
+  renderGuide();
+  renderTimeline();
+  renderClockCards();
+  renderClockView();
+}
+sync();  // initial render on page load
+```
+
+---
+
+## 6. View 1 — Create Menu (Flowchart Canvas)
+
+This is the most complex view: a draggable node-and-edge flowchart editor, built in pure HTML/CSS/SVG/JS — no libraries.
+
+### 6.1 HTML shell
+
+```html
+<div class="view active" id="menu-view">
+  <div class="menu-layout">
+    <div class="panel" style="padding:0; overflow:hidden;">
+      <div class="canvas-panel-header">
+        <h3>Recipe Workflow Canvas</h3>
+        <button class="canvas-add-btn" onclick="addStep()">+ Add Step</button>
+      </div>
+      <div class="canvas-panel-body">
+        <div id="canvas-nodes"></div>
+      </div>
+    </div>
+  </div>
+</div>
+```
+
+`renderCanvas()` fills `#canvas-nodes` with a `.flow-canvas` div containing an SVG edge layer plus one absolutely-positioned `.flow-node` per item in `methodology` + `flowNodes`.
+
+`renderMethodology(){}` is an intentional no-op — it exists only because `sync()` calls it for symmetry with older code; nothing in the current UI uses it.
+
+### 6.2 CSS
+
+```css
+.menu-layout { display:grid; grid-template-columns:1fr; gap:16px; align-items:start; }
+.canvas-panel-header { display:flex; justify-content:space-between; align-items:center; padding:12px 14px; background:var(--paper); border-radius:14px 14px 0 0; border-bottom:1.5px solid var(--g200); }
+.canvas-panel-header h3 { margin-bottom:0; }
+.canvas-panel-body { padding:0; overflow:hidden; border-radius:0 0 14px 14px; }
+.canvas-add-btn { padding:6px 12px; border:1.5px dashed var(--clay); border-radius:999px; background:var(--paper); color:var(--clay); font-family:var(--mono); font-size:11px; cursor:pointer; white-space:nowrap; transition:background 150ms; letter-spacing:.02em; }
+.canvas-add-btn:hover { background:var(--oat); }
+
+.flow-canvas { position:relative; height:620px; background-color:var(--ivory); background-image:radial-gradient(circle, var(--g300) 1px, transparent 1px); background-size:22px 22px; overflow:auto; }
+
+.flow-node { position:absolute; min-width:158px; max-width:200px; padding:10px 12px; background:var(--paper); border:1.5px solid var(--g300); border-radius:12px; cursor:move; user-select:none; box-shadow:0 1px 3px rgba(0,0,0,0.04); transition:box-shadow 150ms,border-color 150ms; z-index:2; }
+.flow-node:hover { border-color:var(--slate); box-shadow:0 4px 14px rgba(0,0,0,0.08); }
+.flow-node.dragging { opacity:0.7; z-index:5; }
+.flow-node.start, .flow-node.end { min-width:80px; padding:10px 22px; border-radius:999px; text-align:center; font-family:var(--mono); font-size:12px; font-weight:600; letter-spacing:.08em; text-transform:uppercase; }
+.flow-node.start { background:var(--olive); color:white; border-color:var(--olive); }
+.flow-node.end { background:var(--clay); color:white; border-color:var(--clay); }
+
+.flow-node-title { font-family:var(--serif); font-size:13px; font-weight:500; line-height:1.3; color:var(--slate); pointer-events:none; }
+.flow-node-meta { font-size:10px; font-family:var(--mono); color:var(--g500); margin-top:4px; pointer-events:none; letter-spacing:.02em; }
+.flow-node-chips { display:flex; gap:4px; flex-wrap:wrap; margin-top:6px; pointer-events:none; }
+.flow-node-chip { font-size:9px; font-family:var(--mono); color:var(--olive); border:1px solid var(--olive); padding:1px 6px; border-radius:999px; letter-spacing:.04em; }
+
+.flow-handle { position:absolute; width:11px; height:11px; border-radius:50%; background:var(--clay); border:2px solid var(--paper); cursor:crosshair; opacity:0; transition:opacity 150ms,transform 150ms; z-index:3; box-shadow:0 1px 3px rgba(0,0,0,0.2); }
+.flow-node:hover .flow-handle { opacity:1; }
+.flow-handle:hover { transform:scale(1.5); }
+.flow-handle.t { top:-7px; left:50%; margin-left:-7px; }
+.flow-handle.r { right:-7px; top:50%; margin-top:-7px; }
+.flow-handle.b { bottom:-7px; left:50%; margin-left:-7px; }
+.flow-handle.l { left:-7px; top:50%; margin-top:-7px; }
+
+.flow-svg { position:absolute; top:0; left:0; pointer-events:none; z-index:1; overflow:visible; }
+.flow-svg path.flow-edge { pointer-events:stroke; cursor:pointer; transition:stroke 100ms,stroke-width 100ms; }
+.flow-svg path.flow-edge:hover { stroke:#c0392b !important; stroke-width:3 !important; }
+
+.flow-node-delete { position:absolute; top:-8px; right:-8px; width:20px; height:20px; background:var(--paper); border:1.5px solid var(--g300); border-radius:50%; display:none; align-items:center; justify-content:center; font-size:11px; cursor:pointer; color:var(--g700); z-index:4; padding:0; line-height:1; }
+.flow-node:hover .flow-node-delete { display:flex; }
+.flow-node-delete:hover { background:#ffe8e1; border-color:#c0392b; color:#c0392b; }
+
+.flow-hint { position:absolute; bottom:10px; left:14px; font-family:var(--mono); font-size:10px; color:var(--g500); background:rgba(255,255,255,0.85); padding:4px 10px; border-radius:999px; border:1px solid var(--g300); pointer-events:none; letter-spacing:.04em; z-index:1; }
+```
+
+### 6.3 Node editor modal
+
+```html
+<div class="node-editor-overlay" id="node-editor-overlay" onclick="closeNodeEditor()">
+  <div class="node-editor" onclick="event.stopPropagation()">
+    <h3>Edit Step</h3>
+    <label>Title</label><input id="editor-title" type="text" />
+    <label>Process</label><input id="editor-process" type="text" />
+    <label>Duration</label><input id="editor-duration" type="text" />
+    <label>Start Time</label><input id="editor-starttime" type="text" />
+    <label>Ingredients (comma separated)</label>
+    <textarea id="editor-ingredients" rows="2"></textarea>
+    <label>Chefs</label>
+    <div class="chef-group">
+      <button type="button" class="chef-btn editor-chef-btn" data-chef="SOUS"    onclick="toggleEditorChef(this)">SOUS</button>
+      <button type="button" class="chef-btn editor-chef-btn" data-chef="STATION" onclick="toggleEditorChef(this)">STATION</button>
+      <button type="button" class="chef-btn editor-chef-btn" data-chef="JUNIOR"  onclick="toggleEditorChef(this)">JUNIOR</button>
+      <button type="button" class="chef-btn editor-chef-btn" data-chef="TRAINEE" onclick="toggleEditorChef(this)">TRAINEE</button>
+    </div>
+    <div class="node-editor-actions">
+      <button class="btn" onclick="closeNodeEditor()">Cancel</button>
+      <button class="btn primary" onclick="saveNodeEditor()">Save</button>
+    </div>
+  </div>
+</div>
+```
+
+```css
+.node-editor-overlay { position:fixed; inset:0; background:rgba(20,20,19,0.45); display:none; align-items:center; justify-content:center; z-index:1000; }
+.node-editor-overlay.open { display:flex; }
+.node-editor { background:var(--paper); border-radius:14px; padding:22px; width:440px; max-height:85vh; overflow-y:auto; box-shadow:0 20px 60px rgba(0,0,0,0.2); }
+.node-editor h3 { font-family:var(--serif); font-weight:500; font-size:18px; margin-bottom:14px; }
+.node-editor label { display:block; font-family:var(--mono); font-size:10px; color:var(--g500); text-transform:uppercase; letter-spacing:.06em; margin:12px 0 4px; }
+.node-editor input, .node-editor textarea { width:100%; border:1.5px solid var(--g300); border-radius:8px; padding:8px 10px; font-family:var(--sans); font-size:13px; background:var(--paper); color:var(--slate); }
+.node-editor input:focus, .node-editor textarea:focus { outline:none; border-color:var(--clay); }
+.node-editor textarea { resize:vertical; min-height:60px; }
+.node-editor .chef-group { display:flex; gap:6px; margin-top:6px; flex-wrap:wrap; }
+.node-editor-actions { display:flex; gap:10px; margin-top:20px; justify-content:flex-end; }
+.node-editor-actions .btn { padding:8px 18px; font-size:12px; }
+```
+
+### 6.4 Interactions (full mechanics)
+
+- **Click a process node** (mousedown+mouseup with <3px movement) → opens the edit modal pre-filled with its data.
+- **Drag a node** (mousedown+move>3px+mouseup) → repositions it; connected edges redraw live during the drag.
+- **Hover a node** → 4 small orange `.flow-handle` dots fade in at top/right/bottom/left. Start/End nodes only get one handle (right for Start, left for End).
+- **Drag a handle to another node** → creates a directed connection (arrow) between them, stored in `appState.sharedDish.connections`.
+- **Click any edge (arrow)** → deletes that connection (the line turns red on hover as a warning).
+- **✕ button** (top-right corner of a node, visible on hover) → deletes the node (only for process nodes; Start/End have no delete button) and removes any connections referencing it.
+- **+ Add Step** button → appends a new blank process node to `methodology`, positioned on a simple 4-column grid below existing nodes.
+
+Full JS:
+
+```js
+let _flowDrag=null,_connDrag=null;
+
+function findFlowNode(id){
+  const m=appState.sharedDish.methodology.find(s=>s.id===id);
+  if(m)return m;
+  return appState.sharedDish.flowNodes.find(n=>n.id===id);
+}
+
+function renderFlowNode(n){
+  if(n._type==='start'||n._type==='end'){
+    const hCls=n._type==='start'?'r':'l';
+    return `<div class="flow-node ${n._type}" data-node-id="${n.id}" style="left:${n.x}px;top:${n.y}px" onmousedown="onNodeMouseDown(event,'${n.id}')">${n.label}<div class="flow-handle ${hCls}" onmousedown="onHandleMouseDown(event,'${n.id}')"></div></div>`;
+  }
+  const chips=(n.chefs||[]).map(c=>`<span class="flow-node-chip">${c}</span>`).join('');
+  const meta=[n.process,n.duration,n.startTime].filter(Boolean).join(' • ');
+  return `<div class="flow-node process" data-node-id="${n.id}" style="left:${n.x}px;top:${n.y}px" onmousedown="onNodeMouseDown(event,'${n.id}')">
+    <div class="flow-node-title">${n.title||'Untitled'}</div>
+    ${meta?`<div class="flow-node-meta">${meta}</div>`:''}
+    ${chips?`<div class="flow-node-chips">${chips}</div>`:''}
+    <button class="flow-node-delete" onmousedown="event.stopPropagation()" onclick="deleteFlowNode(event,'${n.id}')">✕</button>
+    <div class="flow-handle t" onmousedown="onHandleMouseDown(event,'${n.id}')"></div>
+    <div class="flow-handle r" onmousedown="onHandleMouseDown(event,'${n.id}')"></div>
+    <div class="flow-handle b" onmousedown="onHandleMouseDown(event,'${n.id}')"></div>
+    <div class="flow-handle l" onmousedown="onHandleMouseDown(event,'${n.id}')"></div>
+  </div>`;
+}
+
+function renderCanvas(){
+  const meth=appState.sharedDish.methodology;
+  const fn=appState.sharedDish.flowNodes;
+  const nodeHtml=[...meth.map(s=>renderFlowNode({...s,_type:'process'})),...fn.map(n=>renderFlowNode({...n,_type:n.type}))].join('');
+  const hint=`<div class="flow-hint">Click node to edit • Drag node to move • Drag orange dot to connect • Click line to remove</div>`;
+  document.getElementById('canvas-nodes').innerHTML=`<div class="flow-canvas" id="flow-canvas"><svg class="flow-svg" id="flow-svg"></svg>${nodeHtml}${hint}</div>`;
+  const canvas=document.getElementById('flow-canvas');
+  if(canvas){canvas.addEventListener('mousemove',onFlowMouseMove);canvas.addEventListener('mouseup',onFlowMouseUp);}
+  drawFlowEdges();
+}
+
+// Find the point on fromEl's border, along the line toward toEl's center
+function edgePoint(fromEl,toEl){
+  const fcx=fromEl.offsetLeft+fromEl.offsetWidth/2, fcy=fromEl.offsetTop+fromEl.offsetHeight/2;
+  const tcx=toEl.offsetLeft+toEl.offsetWidth/2,     tcy=toEl.offsetTop+toEl.offsetHeight/2;
+  const dx=tcx-fcx, dy=tcy-fcy;
+  if(dx===0&&dy===0)return{x:fcx,y:fcy};
+  const w=fromEl.offsetWidth/2, h=fromEl.offsetHeight/2;
+  const ax=Math.abs(dx)||0.01, ay=Math.abs(dy)||0.01;
+  const s=(ax/w>ay/h)?w/ax:h/ay;
+  return{x:fcx+dx*s,y:fcy+dy*s};
+}
+
+function drawFlowEdges(){
+  const svg=document.getElementById('flow-svg'); const canvas=document.getElementById('flow-canvas');
+  if(!svg||!canvas)return;
+  const w=Math.max(canvas.scrollWidth,canvas.clientWidth), h=Math.max(canvas.scrollHeight,canvas.clientHeight);
+  svg.setAttribute('width',w); svg.setAttribute('height',h); svg.style.width=w+'px'; svg.style.height=h+'px';
+  const defs=`<defs><marker id="ah" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto"><polygon points="0 0,10 4,0 8" fill="#87867F"/></marker></defs>`;
+  const paths=appState.sharedDish.connections.map(c=>{
+    const fromEl=canvas.querySelector(`[data-node-id="${c.from}"]`), toEl=canvas.querySelector(`[data-node-id="${c.to}"]`);
+    if(!fromEl||!toEl)return '';
+    const ff=edgePoint(fromEl,toEl), tt=edgePoint(toEl,fromEl);
+    const dxV=Math.max(Math.abs(tt.x-ff.x)*0.5,40);
+    return `<path class="flow-edge" d="M${ff.x},${ff.y} C${ff.x+dxV},${ff.y} ${tt.x-dxV},${tt.y} ${tt.x},${tt.y}" stroke="#87867F" stroke-width="2" fill="none" marker-end="url(#ah)" onclick="removeFlowConnection(event,'${c.from}','${c.to}')"><title>Click to remove</title></path>`;
+  }).join('');
+  const tempLine=_connDrag?`<path d="${_connDrag.tempPath}" stroke="#D97757" stroke-width="2" stroke-dasharray="6,4" fill="none" />`:'';
+  svg.innerHTML=defs+paths+tempLine;
+}
+
+function onNodeMouseDown(e,id){
+  if(e.target.classList.contains('flow-handle'))return;
+  if(e.target.classList.contains('flow-node-delete'))return;
+  e.preventDefault();
+  const node=findFlowNode(id); if(!node)return;
+  _flowDrag={nodeId:id,startX:e.clientX,startY:e.clientY,origX:node.x,origY:node.y,moved:false};
+}
+
+function onFlowMouseMove(e){
+  if(_flowDrag){
+    const dx=e.clientX-_flowDrag.startX, dy=e.clientY-_flowDrag.startY;
+    if(Math.abs(dx)>3||Math.abs(dy)>3)_flowDrag.moved=true;
+    const node=findFlowNode(_flowDrag.nodeId); if(!node)return;
+    node.x=Math.max(0,_flowDrag.origX+dx); node.y=Math.max(0,_flowDrag.origY+dy);
+    const el=document.querySelector(`[data-node-id="${_flowDrag.nodeId}"]`);
+    if(el){el.style.left=node.x+'px';el.style.top=node.y+'px';el.classList.add('dragging');}
+    drawFlowEdges();
+  } else if(_connDrag){
+    const canvas=document.getElementById('flow-canvas'); const rect=canvas.getBoundingClientRect();
+    const tx=e.clientX-rect.left+canvas.scrollLeft, ty=e.clientY-rect.top+canvas.scrollTop;
+    const sx=_connDrag.startX, sy=_connDrag.startY; const dxV=Math.max(Math.abs(tx-sx)*0.5,40);
+    _connDrag.tempPath=`M${sx},${sy} C${sx+dxV},${sy} ${tx-dxV},${ty} ${tx},${ty}`;
+    drawFlowEdges();
+  }
+}
+
+function onFlowMouseUp(e){
+  if(_flowDrag){
+    const el=document.querySelector(`[data-node-id="${_flowDrag.nodeId}"]`); if(el)el.classList.remove('dragging');
+    const wasMoved=_flowDrag.moved, id=_flowDrag.nodeId; _flowDrag=null;
+    if(!wasMoved)openNodeEditor(id);
+  }
+  if(_connDrag){
+    const target=document.elementFromPoint(e.clientX,e.clientY);
+    const nodeEl=target?target.closest('.flow-node'):null;
+    if(nodeEl){
+      const toId=nodeEl.dataset.nodeId, fromId=_connDrag.fromId;
+      if(fromId!==toId&&!appState.sharedDish.connections.some(c=>c.from===fromId&&c.to===toId))
+        appState.sharedDish.connections.push({from:fromId,to:toId});
+    }
+    _connDrag=null; drawFlowEdges();
+  }
+}
+
+function onHandleMouseDown(e,id){
+  e.preventDefault(); e.stopPropagation();
+  const canvas=document.getElementById('flow-canvas'); const rect=canvas.getBoundingClientRect();
+  const hRect=e.target.getBoundingClientRect();
+  const sx=hRect.left+hRect.width/2-rect.left+canvas.scrollLeft;
+  const sy=hRect.top+hRect.height/2-rect.top+canvas.scrollTop;
+  _connDrag={fromId:id,startX:sx,startY:sy,tempPath:`M${sx},${sy} L${sx},${sy}`};
+}
+
+function openNodeEditor(id){
+  const node=findFlowNode(id); if(!node||node.type==='start'||node.type==='end')return;
+  appState.editingNodeId=id;
+  document.getElementById('editor-title').value=node.title||'';
+  document.getElementById('editor-process').value=node.process||'';
+  document.getElementById('editor-duration').value=node.duration||'';
+  document.getElementById('editor-starttime').value=node.startTime||'';
+  document.getElementById('editor-ingredients').value=(node.ingredients||[]).join(', ');
+  document.querySelectorAll('.editor-chef-btn').forEach(btn=>btn.classList.toggle('active',(node.chefs||[]).includes(btn.dataset.chef)));
+  document.getElementById('node-editor-overlay').classList.add('open');
+}
+
+function saveNodeEditor(){
+  const id=appState.editingNodeId; if(!id)return;
+  const node=appState.sharedDish.methodology.find(s=>s.id===id); if(!node)return;
+  node.title=document.getElementById('editor-title').value;
+  node.process=document.getElementById('editor-process').value;
+  node.duration=document.getElementById('editor-duration').value;
+  node.startTime=document.getElementById('editor-starttime').value;
+  node.ingredients=document.getElementById('editor-ingredients').value.split(',').map(s=>s.trim()).filter(Boolean);
+  node.chefs=Array.from(document.querySelectorAll('.editor-chef-btn.active')).map(b=>b.dataset.chef);
+  closeNodeEditor(); sync();
+}
+
+function closeNodeEditor(){document.getElementById('node-editor-overlay').classList.remove('open');appState.editingNodeId=null;}
+function toggleEditorChef(btn){btn.classList.toggle('active');}
+
+function addStep(){
+  const id=String(Date.now()); const cnt=appState.sharedDish.methodology.length;
+  appState.sharedDish.methodology.push({id,title:'New Step',process:'Prep',duration:'15m',startTime:'10:00',chefs:[],ingredients:[],x:200+(cnt%4)*220,y:420+Math.floor(cnt/4)*150});
+  sync();
+}
+
+function deleteFlowNode(e,id){
+  e.stopPropagation();
+  const idx=appState.sharedDish.methodology.findIndex(s=>s.id===id); if(idx===-1)return;
+  appState.sharedDish.methodology.splice(idx,1);
+  appState.sharedDish.connections=appState.sharedDish.connections.filter(c=>c.from!==id&&c.to!==id);
+  sync();
+}
+
+function removeFlowConnection(e,from,to){
+  e.stopPropagation();
+  appState.sharedDish.connections=appState.sharedDish.connections.filter(c=>!(c.from===from&&c.to===to));
+  drawFlowEdges();
+}
+```
+
+**Key gotchas:**
+- `.flow-svg` has `pointer-events:none` so it never blocks clicks on nodes above it; individual `path.flow-edge` elements opt back in with `pointer-events:stroke`.
+- `.flow-node-title`, `.flow-node-meta`, `.flow-node-chips` all have `pointer-events:none` so clicks bubble up to the parent `.flow-node` (needed for the click-to-edit / drag-to-move gesture detection).
+- The click-vs-drag distinction is a **3px movement threshold** between mousedown and mouseup.
+- Handles call `e.stopPropagation()` in their own `mousedown` so dragging from a handle doesn't also start a node-drag.
+- `document.elementFromPoint()` is used on connection-drag mouseup to detect which node the cursor landed on.
+- Start/End nodes are immune to deletion (no delete button rendered) and to editing (`openNodeEditor` returns early if `node.type` is `start`/`end`).
+
+---
+
+## 7. The Recipe Generation Engine (chat → full workflow)
+
+This is what powers "type a dish name or paste a YouTube link, get a full populated app." It runs **entirely client-side** — no network calls, no API keys. It either pulls a hand-authored recipe from a small library, or synthesizes a plausible one from the dish name alone.
+
+> **Important honesty note for whoever rebuilds this:** a static HTML file cannot actually transcribe a real YouTube video or call an LLM at runtime. This engine *simulates* that experience convincingly using local data + heuristics. If real video-to-recipe extraction is wanted later, that requires a backend (a small server or serverless function that calls a transcript API + an LLM) — out of scope for "simple HTML only."
+
+### 7.1 Recipe library (hand-authored, realistic data)
+
+Three real recipes are included as a small library, each with the 6 parameters fully filled in for every step:
+
+```js
+const GENERIC_QTY={'Aromatics':'50g','Cooking Oil':'30ml','Salt':'to taste','Onion':'200g','Garlic':'20g','Ginger':'15g','Main Ingredient':'600g','Spice Blend':'30g','Stock':'500ml','Seasoning':'to taste','Fresh Herbs':'20g','Garnish':'10g'};
+
+const RECIPE_LIBRARY={
+  'chicken biryani':{dish:'Chicken Biryani',ingredients:[{name:'Chicken',quantity:'800g'},{name:'Yogurt',quantity:'200g'},{name:'Basmati Rice',quantity:'1kg'},{name:'Onions',quantity:'300g'},{name:'Biryani Spices',quantity:'60g'},{name:'Saffron',quantity:'1g'},{name:'Ghee',quantity:'100g'},{name:'Mint',quantity:'30g'}],steps:[
+    {title:'Chicken Marination',process:'Marinating',duration:'45m',startTime:'07:00',ingredients:['Chicken','Yogurt','Biryani Spices'],chefs:['SOUS','STATION']},
+    {title:'Fry Onions (Birista)',process:'Frying',duration:'25m',startTime:'07:15',ingredients:['Onions','Ghee'],chefs:['JUNIOR']},
+    {title:'Par-boil Basmati Rice',process:'Boiling',duration:'20m',startTime:'07:50',ingredients:['Basmati Rice'],chefs:['STATION']},
+    {title:'Layer & Dum Cook',process:'Steaming',duration:'40m',startTime:'08:15',ingredients:['Chicken','Basmati Rice','Saffron','Mint'],chefs:['SOUS']},
+    {title:'Rest & Serve',process:'Plating',duration:'15m',startTime:'08:55',ingredients:['Mint'],chefs:['TRAINEE']}]},
+  'butter chicken':{dish:'Butter Chicken',ingredients:[{name:'Chicken Thighs',quantity:'700g'},{name:'Yogurt',quantity:'150g'},{name:'Tomatoes',quantity:'500g'},{name:'Butter',quantity:'80g'},{name:'Cream',quantity:'150ml'},{name:'Garam Masala',quantity:'20g'},{name:'Garlic-Ginger Paste',quantity:'40g'},{name:'Kasuri Methi',quantity:'5g'}],steps:[
+    {title:'Marinate Chicken',process:'Marinating',duration:'40m',startTime:'07:00',ingredients:['Chicken Thighs','Yogurt','Garam Masala'],chefs:['SOUS']},
+    {title:'Char the Chicken',process:'Grilling',duration:'20m',startTime:'07:40',ingredients:['Chicken Thighs','Butter'],chefs:['STATION']},
+    {title:'Simmer Tomato Gravy',process:'Simmering',duration:'30m',startTime:'07:45',ingredients:['Tomatoes','Garlic-Ginger Paste'],chefs:['JUNIOR']},
+    {title:'Blend & Enrich Sauce',process:'Blending',duration:'15m',startTime:'08:15',ingredients:['Butter','Cream','Kasuri Methi'],chefs:['JUNIOR']},
+    {title:'Combine & Finish',process:'Combining',duration:'20m',startTime:'08:30',ingredients:['Chicken Thighs','Cream'],chefs:['SOUS']},
+    {title:'Plate & Garnish',process:'Plating',duration:'10m',startTime:'08:50',ingredients:['Cream','Kasuri Methi'],chefs:['TRAINEE']}]},
+  'margherita pizza':{dish:'Margherita Pizza',ingredients:[{name:'Pizza Dough',quantity:'500g'},{name:'San Marzano Tomatoes',quantity:'400g'},{name:'Fresh Mozzarella',quantity:'250g'},{name:'Basil',quantity:'20g'},{name:'Olive Oil',quantity:'40ml'},{name:'Sea Salt',quantity:'10g'},{name:'Semolina',quantity:'50g'}],steps:[
+    {title:'Proof the Dough',process:'Proofing',duration:'90m',startTime:'07:00',ingredients:['Pizza Dough'],chefs:['SOUS']},
+    {title:'Prepare Tomato Sauce',process:'Blending',duration:'15m',startTime:'07:30',ingredients:['San Marzano Tomatoes','Sea Salt','Olive Oil'],chefs:['JUNIOR']},
+    {title:'Stretch & Shape Base',process:'Shaping',duration:'15m',startTime:'08:30',ingredients:['Pizza Dough','Semolina'],chefs:['STATION']},
+    {title:'Top the Pizza',process:'Assembling',duration:'10m',startTime:'08:45',ingredients:['San Marzano Tomatoes','Fresh Mozzarella','Basil'],chefs:['STATION']},
+    {title:'Bake in Oven',process:'Baking',duration:'12m',startTime:'08:55',ingredients:['Olive Oil'],chefs:['SOUS']},
+    {title:'Finish & Slice',process:'Plating',duration:'5m',startTime:'09:07',ingredients:['Basil','Olive Oil'],chefs:['TRAINEE']}]}};
+
+const RECIPE_ALIASES={'biryani':'chicken biryani','chicken biryani':'chicken biryani','butter chicken':'butter chicken','murgh makhani':'butter chicken','makhani':'butter chicken','margherita':'margherita pizza','margherita pizza':'margherita pizza','pizza':'margherita pizza'};
+```
+
+To extend the prototype with more "real" dishes later, just add another key to `RECIPE_LIBRARY` (with the same `{dish, ingredients, steps}` shape) and a matching alias or two in `RECIPE_ALIASES`.
+
+### 7.2 Matching user input to the library
+
+```js
+function matchLibrary(input){
+  const t=input.toLowerCase();
+  let best=null,bestLen=0;
+  for(const k in RECIPE_ALIASES){
+    if(t.includes(k)&&k.length>bestLen){best=RECIPE_ALIASES[k];bestLen=k.length;}
+  }
+  return best?RECIPE_LIBRARY[best]:null;
+}
+```
+Longest-alias-wins so `"margherita pizza"` matches the more specific alias rather than a shorter overlapping one.
+
+### 7.3 Extracting a dish name from free text (fallback path)
+
+When the input doesn't match the library, try to pull out a plausible dish name from phrasing like *"recipe for X"*, *"how to make X"*, *"X recipe"*, or — if the whole input is short — just title-case the whole input.
+
+```js
+const pad2=n=>String(n).padStart(2,'0');
+function titleCase(s){return s.replace(/\w\S*/g,w=>w.charAt(0).toUpperCase()+w.slice(1).toLowerCase());}
+function cloneRecipe(r){return JSON.parse(JSON.stringify(r));}
+
+const DISH_STOPWORDS=new Set(['that','which','my','from','and','with','for','the','a','an','to','in','on','at','by','of','today','we','are','is','this','recipe','video','was','were','it','its','will','can','you','your','our']);
+
+function cleanDishPhrase(p){
+  const words=p.trim().split(/\s+/); const kept=[];
+  for(const w of words){
+    const lw=w.toLowerCase().replace(/[^a-z'&-]/g,''); if(!lw)continue;
+    if(DISH_STOPWORDS.has(lw)){ if(kept.length)break; else continue; }  // skip leading stopwords, stop at trailing ones
+    kept.push(w.replace(/[^a-zA-Z'&-]/g,''));
+    if(kept.length>=4)break;  // cap dish names at 4 words
+  }
+  return kept.join(' ').trim();
+}
+
+function extractDishName(input){
+  let t=input.replace(/https?:\/\/\S+/g,' ').replace(/#\w+/g,' ').trim();
+  let m=t.match(/(?:recipe for|how to make|how to cook|make a|make|cook|prepare)\s+([a-z][a-z\s'&-]{2,60})/i);
+  if(m){const c=cleanDishPhrase(m[1]); if(c)return titleCase(c);}
+  m=t.match(/([a-z][a-z\s'&-]{2,60})\s+recipe/i);
+  if(m){const c=cleanDishPhrase(m[1]); if(c)return titleCase(c);}
+  const words=t.split(/\s+/).filter(Boolean);
+  if(words.length>0&&words.length<=6)return titleCase(t);
+  return null;
+}
+```
+
+### 7.4 Synthesizing a believable workflow for any unknown dish
+
+If a dish name is found but isn't in the library, generate a generic-but-plausible 5-step cooking arc, with sequential times computed from durations:
+
+```js
+function assignTimes(steps,start){
+  let[h,m]=start.split(':').map(Number);
+  for(const s of steps){
+    if(!s.startTime)s.startTime=pad2(h)+':'+pad2(m);
+    m+=parseInt(s.duration,10)||0; h+=Math.floor(m/60); m=m%60;
+  }
+}
+
+function collectIngredients(steps){
+  const seen={},out=[];
+  steps.forEach(s=>s.ingredients.forEach(n=>{ if(!seen[n]){seen[n]=1;out.push({name:n,quantity:GENERIC_QTY[n]||'as needed'});} }));
+  return out;
+}
+
+function synthesizeRecipe(name){
+  const steps=[
+    {title:'Mise en Place',         process:'Prep',      duration:'20m', ingredients:['Aromatics','Cooking Oil','Salt'],   chefs:['SOUS']},
+    {title:'Build the Flavor Base', process:'Sautéing',  duration:'25m', ingredients:['Onion','Garlic','Ginger'],          chefs:['STATION']},
+    {title:'Cook '+name,            process:'Cooking',   duration:'40m', ingredients:['Main Ingredient','Spice Blend'],    chefs:['SOUS','STATION']},
+    {title:'Simmer & Combine',      process:'Simmering', duration:'30m', ingredients:['Stock','Seasoning'],                chefs:['JUNIOR']},
+    {title:'Plate & Garnish',       process:'Plating',   duration:'15m', ingredients:['Fresh Herbs','Garnish'],            chefs:['TRAINEE']}
+  ];
+  assignTimes(steps,'07:00');
+  return {dish:name,ingredients:collectIngredients(steps),steps};
+}
+```
+
+### 7.5 Top-level entry point + applying the result
+
+```js
+function buildRecipe(input){
+  const lib=matchLibrary(input); if(lib)return cloneRecipe(lib);
+  const name=extractDishName(input); if(name)return synthesizeRecipe(name);
+  return cloneRecipe(RECIPE_LIBRARY['butter chicken']);  // ultimate fallback (e.g. a bare YouTube link with no dish text)
+}
+
+function applyRecipe(r){
+  appState.sharedDish.ingredients=r.ingredients.slice();
+
+  const steps=r.steps.map((s,i)=>({
+    id:String(Date.now()+i), title:s.title, process:s.process, duration:s.duration, startTime:s.startTime,
+    ingredients:s.ingredients.slice(), chefs:s.chefs.slice(),
+    x:200+(i%4)*250, y:200+Math.floor(i/4)*190   // simple 4-column grid layout
+  }));
+  appState.sharedDish.methodology=steps;
+
+  const lastRow=Math.floor((steps.length-1)/4);
+  appState.sharedDish.flowNodes=[
+    {id:'_start',type:'start',label:'Start',x:60,y:224},
+    {id:'_end',  type:'end',  label:'End',  x:200+4*250,y:200+lastRow*190+24}
+  ];
+
+  const conns=[{from:'_start',to:steps[0].id}];
+  for(let i=0;i<steps.length-1;i++)conns.push({from:steps[i].id,to:steps[i+1].id});
+  conns.push({from:steps[steps.length-1].id,to:'_end'});
+  appState.sharedDish.connections=conns;
+
+  const dt=document.getElementById('dish-title'); if(dt)dt.textContent=r.dish;
+  sync();
+}
+```
+
+Putting §4.1 and §7 together is the full chat-to-app pipeline: user text → `buildRecipe()` → `{dish, ingredients, steps}` → `applyRecipe()` → mutates `appState` + updates header → `sync()` re-renders all 5 views.
+
+---
+
+## 8. View 2 — Create Guide
+
+Read-only cards, one per methodology step, video-thumbnail style placeholder.
+
+```html
+<div class="view" id="guide-view">
+  <div class="guide-layout">
+    <div class="panel"><h3>Guide Cards</h3><div id="guide-cards"></div></div>
+  </div>
+</div>
+```
+
+```css
+.guide-layout { display:grid; grid-template-columns:1fr; gap:16px; }
+.guide-card-thumb { background:var(--g100); border-radius:8px; height:110px; display:flex; align-items:center; justify-content:center; margin-bottom:10px; border:1.5px solid var(--g200); }
+.guide-thumb-icon { font-size:32px; color:var(--g300); line-height:1; }
+.node-title { font-weight:500; margin-bottom:8px; font-family:var(--serif); font-size:15px; }
+```
+
+```js
+function renderGuide(){
+  document.getElementById('guide-cards').innerHTML=appState.sharedDish.methodology.map(step=>
+    `<div class="guide-card">
+      <div class="guide-card-thumb"><div class="guide-thumb-icon">▶</div></div>
+      <div class="node-title">${step.title}</div>
+      <div class="small">Process: ${step.process}</div>
+      <div class="small">Start: ${step.startTime}</div>
+      <div class="small">Duration: ${step.duration}</div>
+      <div class="small">Chefs: ${step.chefs.join(', ')}</div>
+      <div class="small">Ingredients: ${step.ingredients.join(', ')}</div>
+    </div>`
+  ).join('');
+}
+```
+
+---
+
+## 9. View 3 — Create Plan (Timeline + Clock)
+
+### 9.1 Shell
+
+```html
+<div class="view" id="plan-view">
+  <div style="display:flex; justify-content:space-between; margin-bottom:16px; align-items:center;">
+    <strong>Create Plan</strong>
+    <div style="display:flex; gap:10px">
+      <button class="btn primary" id="timeline-toggle-btn">Timeline View</button>
+      <button class="btn" id="clock-toggle-btn">Clock View</button>
+    </div>
+  </div>
+  <div class="plan-layout">
+    <div class="panel">
+      <div class="accordion-header" onclick="toggleAccordion()">
+        <h3>Step Cards</h3>
+        <span class="accordion-chevron" id="accordion-chevron">▼</span>
+      </div>
+      <div class="accordion-body collapsed" id="accordion-body">
+        <div id="clock-cards"></div>
+      </div>
+    </div>
+    <div class="panel">
+      <div id="timeline-view-section">
+        <h3 style="margin-bottom:12px">Timeline View</h3>
+        <div id="timeline"></div>
+      </div>
+      <div id="clock-view-section" style="display:none">
+        <h3 style="margin-bottom:12px">Clock View</h3>
+        <div class="clock-layout">
+          <div id="clock-step-list"></div>
+          <div class="clock-face" id="clock-face"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+```
+
+```css
+.plan-layout { display:flex; flex-direction:column; gap:16px; }
+.accordion-header { display:flex; justify-content:space-between; align-items:center; cursor:pointer; user-select:none; margin-bottom:0; }
+.accordion-header h3 { margin-bottom:0; }
+.accordion-chevron { font-size:12px; color:var(--g500); transition:transform 200ms; font-family:var(--mono); }
+.accordion-body { margin-top:12px; }
+.accordion-body.collapsed { display:none; }
+```
+
+```js
+function toggleAccordion(){
+  const body=document.getElementById('accordion-body'); const chevron=document.getElementById('accordion-chevron');
+  const collapsed=body.classList.toggle('collapsed');
+  chevron.style.transform=collapsed?'':'rotate(180deg)';
+}
+
+function renderClockCards(){
+  document.getElementById('clock-cards').innerHTML=appState.sharedDish.methodology.map((step)=>
+    `<div class="clock-card"><div class="node-title">${step.title}</div><div class="small">${step.process}</div><div class="small">${step.startTime} • ${step.duration}</div><div class="small">Chefs: ${step.chefs.join(', ')}</div><div class="small">Ingredients: ${step.ingredients.join(', ')}</div></div>`
+  ).join('');
+}
+
+function selectPlanStep(index){appState.selectedPlanStep=index;renderClockCards();}
+```
+
+Toggle buttons swap which section is visible:
+```js
+document.getElementById('timeline-toggle-btn').addEventListener('click',()=>{
+  document.getElementById('timeline-view-section').style.display='block';
+  document.getElementById('clock-view-section').style.display='none';
+});
+document.getElementById('clock-toggle-btn').addEventListener('click',()=>{
+  document.getElementById('timeline-view-section').style.display='none';
+  document.getElementById('clock-view-section').style.display='block';
+});
+```
+
+### 9.2 Timeline View (Gantt-style bars per chef)
+
+```css
+.timeline-header { display:grid; grid-template-columns:repeat(13,1fr); border:1.5px solid var(--g300); margin-bottom:10px; border-radius:8px; overflow:hidden; }
+.timeline-hour { border-right:1px solid var(--g200); padding:6px; font-size:11px; text-align:center; font-family:var(--mono); color:var(--g500); background:var(--g100); }
+.timeline-hour:last-child { border-right:none; }
+.timeline-bars { position:relative; height:80px; border:1.5px dashed var(--g300); margin-top:8px; border-radius:6px; }
+.bar { position:absolute; top:18px; height:42px; border:1.5px solid var(--g300); background:var(--paper); padding:4px 6px; font-size:11px; cursor:pointer; border-radius:6px; transition:border-color 150ms,box-shadow 150ms; }
+.bar:hover { border-color:var(--clay); box-shadow:0 4px 12px rgba(217,119,87,.15); }
+.bar strong { font-family:var(--serif); font-size:12px; }
+```
+
+```js
+function renderTimeline(){
+  const tasks=deriveTasks();
+  const hours=['7AM','8AM','9AM','10AM','11AM','12PM','1PM','2PM','3PM','4PM','5PM','6PM','7PM'];
+  const chefs=['SOUS','STATION','JUNIOR','TRAINEE'];
+  document.getElementById('timeline').innerHTML=
+    `<div class="timeline-header">${hours.map(hour=>`<div class="timeline-hour">${hour}</div>`).join('')}</div>` +
+    chefs.map(chef=>`<div><strong>${chef}</strong><div class="timeline-bars">${
+      tasks.filter(task=>task.chef===chef).map(task=>{
+        const parts=task.startTime.split(':');
+        const left=((parseInt(parts[0])-7)*60)+parseInt(parts[1]);   // px offset from 7AM, 1px per minute... actually 4px/min, see width below
+        const width=task.duration*4;                                  // 4px per minute
+        return `<div class="bar" style="left:${left}px;width:${width}px" onclick="showTask('${task.title}','${task.process}','${task.startTime}','${task.duration}','${task.chef}')"><strong>${task.title}</strong><br>${task.startTime} • ${task.duration}m</div>`;
+      }).join('')
+    }</div></div>`).join('');
+}
+```
+**Scale note:** `left` and `width` are both computed at *1 grid-minute → 4px* (since the 13-column header spans 12 hours ≈ matches roughly to the grid, but the bar positioning math uses a flat 4px/minute scale independent of the header grid — that's intentional/approximate for a low-fi prototype, not pixel-perfect to the header columns).
+
+`showTask` is shared by Timeline bars and Clock segments:
+```js
+function showTask(title,process,start,duration,chef){
+  alert('STEP DETAILS\n\n'+'Step: '+title+'\n'+'Process: '+process+'\n'+'Chef: '+chef+'\n'+'Start: '+start+'\n'+'Duration: '+duration);
+}
+```
+
+### 9.3 Clock View (concentric radial chart, one ring per chef)
+
+```css
+.clock-layout { display:grid; grid-template-columns:240px 1fr; gap:20px; align-items:start; }
+.clock-face { display:flex; justify-content:center; align-items:center; }
+.clock-seg { cursor:pointer; transition:opacity 120ms; }
+.clock-seg:hover { opacity:.72; }
+.clock-ring-bg { fill:none; stroke:var(--g200); stroke-width:1; }
+.clock-tick { stroke:var(--g300); stroke-width:1.5; }
+.clock-hour-label { font-family:var(--mono); font-size:10px; fill:var(--g500); text-anchor:middle; dominant-baseline:middle; }
+.clock-hub-label { font-family:var(--mono); font-size:10px; fill:var(--g500); text-anchor:middle; dominant-baseline:middle; letter-spacing:.05em; }
+.chef-legend { display:flex; flex-direction:column; gap:8px; margin-bottom:16px; }
+.chef-legend-item { display:flex; align-items:center; gap:8px; font-family:var(--mono); font-size:11px; color:var(--g700); letter-spacing:.02em; }
+.chef-dot { width:12px; height:12px; border-radius:50%; flex-shrink:0; }
+.clock-task-item { border:1.5px solid var(--g300); border-left-width:4px; border-radius:10px; padding:8px 10px; margin-bottom:8px; background:var(--paper); }
+.clock-task-item .ct-title { font-family:var(--serif); font-size:13px; font-weight:500; color:var(--slate); }
+```
+
+**Design:** 4 concentric rings, one per chef (SOUS outer → STATION → JUNIOR → TRAINEE inner). Each task renders as a colored arc sector on its chef's ring, positioned by angle = time-of-day mapped onto a 7AM–7PM (12-hour) clock face, 7AM at 12 o'clock, clockwise. Center hub shows the schedule window. Left side: a color legend + every task as a sorted list card.
+
+```js
+const CHEF_ORDER=['SOUS','STATION','JUNIOR','TRAINEE'];
+const CHEF_COLORS={SOUS:'#D97757',STATION:'#788C5D',JUNIOR:'#5B7FA6',TRAINEE:'#A86A9E'};
+const CLOCK_START_MIN=420, CLOCK_END_MIN=1140; // 7:00=420min, 19:00=1140min -> 12h window
+
+function timeToDeg(mins){
+  const c=Math.max(CLOCK_START_MIN,Math.min(CLOCK_END_MIN,mins));
+  return ((c-CLOCK_START_MIN)/(CLOCK_END_MIN-CLOCK_START_MIN))*360;
+}
+function ptA(cx,cy,r,deg){ const a=deg*Math.PI/180; return [cx+r*Math.sin(a), cy-r*Math.cos(a)]; }  // 0deg = straight up, clockwise
+function sectorPath(cx,cy,ri,ro,a0,a1){
+  const large=(a1-a0)>180?1:0;
+  const[x0o,y0o]=ptA(cx,cy,ro,a0), [x1o,y1o]=ptA(cx,cy,ro,a1);
+  const[x1i,y1i]=ptA(cx,cy,ri,a1), [x0i,y0i]=ptA(cx,cy,ri,a0);
+  return `M${x0o},${y0o} A${ro},${ro} 0 ${large} 1 ${x1o},${y1o} L${x1i},${y1i} A${ri},${ri} 0 ${large} 0 ${x0i},${y0i} Z`;
+}
+function fmtHour(h){ const ap=h%24<12?'AM':'PM'; let hh=h%12; if(hh===0)hh=12; return hh+ap; }
+function minsToHHMM(m){ const h=Math.floor(m/60), mm=m%60; return String(h).padStart(2,'0')+':'+String(mm).padStart(2,'0'); }
+
+function renderClockView(){
+  const tasks=deriveTasks();
+
+  // --- Left panel: legend + sorted task list ---
+  const legend=`<div class="chef-legend">${CHEF_ORDER.map(c=>`<div class="chef-legend-item"><span class="chef-dot" style="background:${CHEF_COLORS[c]}"></span>${c}</div>`).join('')}</div>`;
+  const sorted=[...tasks].sort((a,b)=>{
+    const pa=a.startTime.split(':'), pb=b.startTime.split(':');
+    return (pa[0]*60+ +pa[1])-(pb[0]*60+ +pb[1]);
+  });
+  const list=sorted.map(t=>{
+    const end=minsToHHMM((+t.startTime.split(':')[0]*60 + +t.startTime.split(':')[1]) + t.duration);
+    return `<div class="clock-task-item" style="border-left-color:${CHEF_COLORS[t.chef]||'var(--g300)'}">
+      <div class="ct-title">${t.title}</div>
+      <div class="small">${t.chef} • ${t.process}</div>
+      <div class="small">${t.startTime}–${end} (${t.duration}m)</div>
+      <div class="small">${(t.ingredients||[]).join(', ')}</div>
+    </div>`;
+  }).join('');
+  document.getElementById('clock-step-list').innerHTML=legend+list;
+
+  // --- Right panel: radial SVG clock ---
+  const SZ=460, CX=230, CY=230;
+  const ringW=28, gap=7, rOuterStart=196, labelR=214;
+  const rings=CHEF_ORDER.map((c,i)=>{ const ro=rOuterStart-i*(ringW+gap); return {chef:c, ro, ri:ro-ringW}; });
+  const ringBg=rings.map(r=>`<circle class="clock-ring-bg" cx="${CX}" cy="${CY}" r="${(r.ro+r.ri)/2}" stroke-width="${ringW}" stroke="var(--g100)" fill="none"/>`).join('');
+
+  let ticks='';
+  for(let h=7;h<=18;h++){
+    const deg=timeToDeg(h*60);
+    const[x1,y1]=ptA(CX,CY,rOuterStart+2,deg), [x2,y2]=ptA(CX,CY,rOuterStart+8,deg), [lx,ly]=ptA(CX,CY,labelR,deg);
+    ticks+=`<line class="clock-tick" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"/><text class="clock-hour-label" x="${lx}" y="${ly}">${fmtHour(h)}</text>`;
+  }
+
+  const segs=tasks.map(t=>{
+    const ring=rings.find(r=>r.chef===t.chef); if(!ring)return '';
+    const parts=t.startTime.split(':'); const startMin=(+parts[0])*60+(+parts[1]);
+    let a0=timeToDeg(startMin), a1=timeToDeg(startMin+t.duration);
+    if(a1-a0<1.5)a1=a0+1.5;  // minimum visible sliver
+    const d=sectorPath(CX,CY,ring.ri,ring.ro,a0,a1);
+    return `<path class="clock-seg" d="${d}" fill="${CHEF_COLORS[t.chef]}" stroke="var(--paper)" stroke-width="1.5" onclick="showTask('${t.title.replace(/'/g,"\\'")}','${t.process}','${t.startTime}','${t.duration}','${t.chef}')"><title>${t.title} — ${t.chef}\n${t.startTime} • ${t.duration}m</title></path>`;
+  }).join('');
+
+  const hub=`<circle cx="${CX}" cy="${CY}" r="${rings[3].ri-6}" fill="var(--paper)" stroke="var(--g300)" stroke-width="1.5"/><text class="clock-hub-label" x="${CX}" y="${CY-7}">7AM–7PM</text><text class="clock-hub-label" x="${CX}" y="${CY+8}">SCHEDULE</text>`;
+
+  document.getElementById('clock-face').innerHTML=`<svg width="${SZ}" height="${SZ}" viewBox="0 0 ${SZ} ${SZ}">${ringBg}${segs}${ticks}${hub}</svg>`;
+}
+```
+
+Ring radii (outer→inner): SOUS 196/168, STATION 161/133, JUNIOR 126/98, TRAINEE 91/63 — each `ringW=28` thick with `gap=7` between rings. Hub circle radius = TRAINEE's inner radius minus 6px.
+
+---
+
+## 10. Views 4 & 5 — Discovery / Pairing (placeholders)
+
+```html
+<div class="view" id="discovery-view"><div class="placeholder">Discovery Module Placeholder</div></div>
+<div class="view" id="pairing-view"><div class="placeholder">Pairing Module Placeholder</div></div>
+```
+No JS behind these — intentionally unbuilt.
+
+---
+
+## 11. Ingredients Modal
+
+```html
+<div class="ingredients-modal" id="ingredients-modal">
+  <div class="ingredients-modal-content">
+    <div class="ingredients-modal-header">
+      <strong>Ingredients</strong>
+      <button class="btn" onclick="closeIngredientsModal()">Close</button>
+    </div>
+    <div id="ingredients-modal-list"></div>
+    <button class="btn primary" style="margin-top:12px">Add Ingredient</button>
+  </div>
+</div>
+```
+
+```css
+.ingredients-modal { position:fixed; inset:0; background:rgba(20,20,19,.25); display:none; align-items:center; justify-content:center; }
+.ingredients-modal-content { width:420px; background:var(--paper); border:1.5px solid var(--g300); padding:20px; border-radius:14px; box-shadow:0 16px 48px rgba(20,20,19,.12); }
+.ingredients-modal-header { display:flex; justify-content:space-between; margin-bottom:16px; align-items:center; }
+.ingredients-modal-header strong { font-family:var(--serif); font-size:17px; }
+```
+
+```js
+function renderIngredients(){
+  const modalContainer=document.getElementById('ingredients-modal-list');
+  const html=appState.sharedDish.ingredients.map(item=>`<div class="ingredient-item"><strong>${item.name}</strong><div class="small">${item.quantity}</div></div>`).join('');
+  if(modalContainer){modalContainer.innerHTML=html;}
+}
+function openIngredientsModal(){document.getElementById('ingredients-modal').style.display='flex';}
+function closeIngredientsModal(){document.getElementById('ingredients-modal').style.display='none';}
+```
+Opened via the "Ingredients" button in the header. The "Add Ingredient" button is present but intentionally has no `onclick` wired — a known stub.
+
+---
+
+## 12. End-to-End Wire-Up Checklist (build order)
+
+1. **HTML skeleton** — `<head>` with one `<style>` block (§2 tokens + all component CSS below); `<body>` with `.sidebar` → `.workspace-shell` (`.chat-panel` + `.main`).
+2. **Sidebar nav** (§3.1) + view-switching JS.
+3. **Header** (§3.2) with `#dish-title`.
+4. **Five `.view` containers** in `.content`: `menu-view` (active by default), `guide-view`, `plan-view`, `discovery-view`, `pairing-view`.
+5. **Chat panel** (§4) — HTML + `sendChatMessage`/`generateWorkflow`/`toggleYTPill`.
+6. **`appState`** (§5) with seed data (Chicken Biryani, 3 steps).
+7. **Canvas / flowchart** (§6) — CSS, modal HTML, all JS functions. Verify: click-to-edit, drag-to-move, handle-drag-to-connect, click-edge-to-delete, add/delete nodes.
+8. **Recipe engine** (§7) — library, matcher, extractor, synthesizer, `buildRecipe`/`applyRecipe`. Verify with: a library dish name, an unknown dish name, a bare YouTube link, a YouTube link with dish text in the same message.
+9. **Guide view** (§8).
+10. **Plan view** — shell + accordion (§9.1), Timeline (§9.2), Clock (§9.3). Verify ring colors match the legend and segments line up with hour ticks.
+11. **Ingredients modal** (§11).
+12. **`sync()`** wiring + initial `sync()` call + nav listeners + toggle-button listeners, all at the bottom of the script, in that order (functions must be defined before listeners reference them — or just define everything before the final wiring block, which is what the source does).
+13. Optional: sanity `console.assert` calls (`methodology.length===3`, `deriveTasks().length===4`, the 3 named views exist) — these only matter for the literal seed data, not for generated recipes.
+
+## 13. Acceptance Checklist (what "done" looks like)
+
+- [ ] Sidebar nav switches between all 5 views, tooltip shows on hover.
+- [ ] Chat: typing a known dish name (e.g. "butter chicken") builds and syncs a 6-step workflow within ~1.4s, with a loading bubble shown during the wait.
+- [ ] Chat: typing an unrecognized dish name (e.g. "Lamb Rogan Josh") still produces a sensible 5-step workflow using that name.
+- [ ] Chat: pasting a YouTube URL shows a confirmation card before generating.
+- [ ] Canvas: every step is a draggable, clickable, connectable node; Start/End are fixed bookends; edges can be drawn and removed.
+- [ ] Editing a node's fields and saving immediately updates Guide, Timeline, and Clock.
+- [ ] Timeline bars and Clock segments are clickable and show the same `showTask` alert.
+- [ ] Clock rings are color-matched to the legend; hour labels run 7AM→6PM clockwise from the top.
+- [ ] Ingredients modal opens/closes and lists `sharedDish.ingredients`.
+- [ ] No console errors at any point in the above flow.
+
+---
+
+*This file plus a static file server (e.g. `npx http-server`) is the entire stack — no `npm install`, no bundler, no backend.*
